@@ -68,35 +68,7 @@ def parse_arguments():
         help='Enable verbose logging'
     )
     
-    # Image generation arguments
-    parser.add_argument(
-        '--skip-images',
-        action='store_true',
-        help='Skip AI image generation entirely (use existing image_url values)'
-    )
-    parser.add_argument(
-        '--regenerate-images',
-        action='store_true',
-        help='Force regeneration of all images (even if image_base64 already exists)'
-    )
-    parser.add_argument(
-        '--image-width',
-        type=int,
-        default=512,
-        help='Generated image width in pixels (default: 512)'
-    )
-    parser.add_argument(
-        '--image-height',
-        type=int,
-        default=512,
-        help='Generated image height in pixels (default: 512)'
-    )
-    parser.add_argument(
-        '--model-id',
-        type=str,
-        default='amazon.nova-canvas-v1:0',
-        help='Bedrock Nova Canvas model ID (default: amazon.nova-canvas-v1:0)'
-    )
+
     
     return parser.parse_args()
 
@@ -211,11 +183,6 @@ def create_index_if_not_exists(client, index_name: str):
                     },
                     "image_url": {
                         "type": "keyword"
-                    },
-                    "image_base64": {
-                        "type": "keyword",
-                        "index": False,
-                        "doc_values": False
                     },
                     "description_embedding": {
                         "type": "knn_vector",
@@ -337,93 +304,6 @@ def validate_product(product: Dict, index: int) -> bool:
     return True
 
 
-def generate_images_for_products(
-    products: List[Dict],
-    model_id: str,
-    width: int,
-    height: int,
-    skip_existing: bool = True
-) -> tuple[List[Dict], int, int]:
-    """
-    Generate AI images for products using Nova Canvas
-    
-    Args:
-        products: List of product dictionaries
-        model_id: Bedrock Nova Canvas model ID
-        width: Image width in pixels
-        height: Image height in pixels
-        skip_existing: Skip products that already have image_base64
-    
-    Returns:
-        Tuple of (products with images, success_count, failure_count)
-    """
-    # Import image generator module
-    sys.path.insert(0, str(Path(__file__).parent))
-    from image_generator import generate_product_image, encode_image_base64
-    
-    import time
-    
-    logger.info(f"Generating AI images for products (width={width}, height={height})")
-    logger.info(f"Total products to process: {len(products)}")
-    
-    success_count = 0
-    failure_count = 0
-    skipped_count = 0
-    start_time = time.time()
-    
-    for i, product in enumerate(products):
-        product_id = product.get('product_id', 'unknown')
-        product_name = product.get('name', 'Unknown')
-        
-        # Skip if product already has image_base64 and we're not regenerating
-        if skip_existing and 'image_base64' in product and product['image_base64']:
-            logger.debug(f"Skipping product {product_id} - already has image_base64")
-            skipped_count += 1
-            continue
-        
-        logger.info(f"Generating image for product {i + 1}/{len(products)}: {product_name}")
-        
-        image_start_time = time.time()
-        
-        # Generate image
-        image_bytes = generate_product_image(
-            product=product,
-            model_id=model_id,
-            width=width,
-            height=height
-        )
-        
-        image_duration = time.time() - image_start_time
-        
-        if image_bytes:
-            # Encode to base64
-            image_base64 = encode_image_base64(image_bytes)
-            product['image_base64'] = image_base64
-            success_count += 1
-            logger.info(f"Successfully generated image for {product_name} in {image_duration:.2f}s "
-                       f"({len(image_bytes)} bytes, {len(image_base64)} base64 chars)")
-        else:
-            # Generation failed - preserve image_url
-            failure_count += 1
-            logger.warning(f"Failed to generate image for {product_name} - will use image_url fallback")
-    
-    total_duration = time.time() - start_time
-    
-    # Log summary
-    logger.info("=" * 60)
-    logger.info("Image generation summary:")
-    logger.info(f"  Total products: {len(products)}")
-    logger.info(f"  Successfully generated: {success_count}")
-    logger.info(f"  Failed: {failure_count}")
-    logger.info(f"  Skipped (already have images): {skipped_count}")
-    logger.info(f"  Total time: {total_duration:.2f}s")
-    if success_count > 0:
-        logger.info(f"  Average time per image: {total_duration / success_count:.2f}s")
-    logger.info("=" * 60)
-    
-    return products, success_count, failure_count
-
-
 def generate_embeddings_for_products(products: List[Dict], region: str) -> List[Dict]:
     """
     Generate embeddings for all products using Bedrock
@@ -487,25 +367,9 @@ def index_products(client, index_name: str, products: List[Dict]) -> int:
         logger.info(f"Indexing {len(products)} products into '{index_name}'")
         
         indexed_count = 0
-        MAX_DOCUMENT_SIZE = 1024 * 1024  # 1MB (well under OpenSearch's 100MB limit)
         
         for i, product in enumerate(products):
             product_id = product['product_id']
-            
-            # Check document size
-            product_json = json.dumps(product)
-            document_size = len(product_json.encode('utf-8'))
-            
-            if document_size > MAX_DOCUMENT_SIZE:
-                logger.warning(f"Product {product_id} document size ({document_size} bytes) exceeds 1MB limit")
-                # Remove image_base64 to reduce size
-                if 'image_base64' in product:
-                    logger.warning(f"Removing image_base64 from product {product_id} to reduce document size")
-                    del product['image_base64']
-                    # Recalculate size
-                    product_json = json.dumps(product)
-                    document_size = len(product_json.encode('utf-8'))
-                    logger.info(f"Product {product_id} size after removing image: {document_size} bytes")
             
             # OpenSearch Serverless doesn't support custom document IDs
             # Just index the document and let OpenSearch generate the ID
@@ -582,30 +446,9 @@ def main():
             sys.exit(4)
         
         logger.info(f"All {len(valid_products)} products are valid")
+        logger.info("Using Unsplash image URLs from products.json (ChatGPT CSP compatible)")
         
-        # Step 3: Generate AI images (if not skipped)
-        if args.skip_images:
-            logger.info("Skipping AI image generation (--skip-images flag set)")
-        else:
-            try:
-                skip_existing = not args.regenerate_images
-                valid_products, img_success, img_failure = generate_images_for_products(
-                    products=valid_products,
-                    model_id=args.model_id,
-                    width=args.image_width,
-                    height=args.image_height,
-                    skip_existing=skip_existing
-                )
-                
-                if img_failure > 0:
-                    logger.warning(f"{img_failure} products failed image generation - they will use image_url fallback")
-                    
-            except Exception as e:
-                logger.error(f"Image generation failed: {str(e)}")
-                logger.warning("Continuing with product loading using image_url fallback")
-                # Don't exit - continue with loading
-        
-        # Step 4: Set up OpenSearch connection
+        # Step 3: Set up OpenSearch connection
         opensearch_endpoint = args.opensearch_endpoint or os.getenv("OPENSEARCH_ENDPOINT")
         if not opensearch_endpoint:
             logger.error("OpenSearch endpoint not provided")

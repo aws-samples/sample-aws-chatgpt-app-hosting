@@ -11,17 +11,23 @@ import logging
 import random
 import time
 from typing import Optional
+from io import BytesIO
 
 import boto3
 from botocore.exceptions import ClientError
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Module-level constants
 DEFAULT_MODEL_ID = "amazon.nova-canvas-v1:0"
-DEFAULT_WIDTH = 512
-DEFAULT_HEIGHT = 512
+DEFAULT_WIDTH = 320  # Minimum size for Nova Canvas (reduced from 512)
+DEFAULT_HEIGHT = 320  # Minimum size for Nova Canvas (reduced from 512)
 DEFAULT_MAX_RETRIES = 3
 
 # Retry configuration
@@ -30,8 +36,8 @@ BACKOFF_MULTIPLIER = 2.0
 JITTER_PERCENT = 0.2  # ±20%
 
 # Image validation bounds
-MIN_IMAGE_SIZE = 10 * 1024  # 10KB
-MAX_IMAGE_SIZE = 500 * 1024  # 500KB
+MIN_IMAGE_SIZE = 5 * 1024  # 5KB (reduced for smaller images)
+MAX_IMAGE_SIZE = 250 * 1024  # 250KB (PNG before WebP compression)
 
 
 
@@ -78,6 +84,57 @@ def create_image_prompt(product: dict) -> str:
 
 
 
+def convert_png_to_webp(png_bytes: bytes, quality: int = 85) -> bytes:
+    """
+    Convert PNG image to WebP format for better compression.
+    
+    Args:
+        png_bytes: Raw PNG image data
+        quality: WebP quality (0-100, default 85 for good balance)
+        
+    Returns:
+        WebP image bytes
+        
+    Raises:
+        ImportError: If PIL/Pillow is not installed
+        Exception: If conversion fails
+    """
+    if Image is None:
+        raise ImportError("Pillow is required for WebP conversion. Install with: pip install Pillow")
+    
+    try:
+        # Open PNG image from bytes
+        png_image = Image.open(BytesIO(png_bytes))
+        
+        # Convert to RGB if necessary (WebP doesn't support all PNG modes)
+        if png_image.mode in ('RGBA', 'LA', 'P'):
+            # Create white background for transparency
+            background = Image.new('RGB', png_image.size, (255, 255, 255))
+            if png_image.mode == 'P':
+                png_image = png_image.convert('RGBA')
+            if 'A' in png_image.mode:
+                background.paste(png_image, mask=png_image.split()[-1])
+            else:
+                background.paste(png_image)
+            png_image = background
+        elif png_image.mode != 'RGB':
+            png_image = png_image.convert('RGB')
+        
+        # Save as WebP to bytes buffer
+        webp_buffer = BytesIO()
+        png_image.save(webp_buffer, format='WEBP', quality=quality, method=6)
+        webp_bytes = webp_buffer.getvalue()
+        
+        logger.debug(f"Converted PNG ({len(png_bytes)} bytes) to WebP ({len(webp_bytes)} bytes) - "
+                    f"{100 * (1 - len(webp_bytes)/len(png_bytes)):.1f}% reduction")
+        
+        return webp_bytes
+        
+    except Exception as e:
+        logger.error(f"Failed to convert PNG to WebP: {e}")
+        raise
+
+
 def encode_image_base64(image_bytes: bytes) -> str:
     """
     Encode image bytes as base64 string.
@@ -86,7 +143,7 @@ def encode_image_base64(image_bytes: bytes) -> str:
     embedding in JSON documents and data URIs.
     
     Args:
-        image_bytes: Raw image data (PNG format)
+        image_bytes: Raw image data (PNG or WebP format)
         
     Returns:
         Base64-encoded string without line breaks
@@ -98,15 +155,16 @@ def encode_image_base64(image_bytes: bytes) -> str:
 
 
 
-def validate_image(image_bytes: bytes) -> bool:
+def validate_image(image_bytes: bytes, format_type: str = 'PNG') -> bool:
     """
     Validate generated image data.
     
     Checks that the image data is non-empty, within expected size bounds,
-    and has a valid PNG format signature.
+    and has a valid format signature.
     
     Args:
         image_bytes: Raw image data to validate
+        format_type: Expected format ('PNG' or 'WEBP')
         
     Returns:
         True if image is valid, False otherwise
@@ -126,14 +184,20 @@ def validate_image(image_bytes: bytes) -> bool:
         logger.warning(f"Image validation failed: size {image_size} bytes exceeds maximum {MAX_IMAGE_SIZE} bytes")
         return False
     
-    # Check PNG format signature (first 8 bytes)
-    # PNG signature: 137 80 78 71 13 10 26 10 (hex: 89 50 4E 47 0D 0A 1A 0A)
-    png_signature = b'\x89PNG\r\n\x1a\n'
-    if not image_bytes.startswith(png_signature):
-        logger.warning("Image validation failed: not a valid PNG format")
-        return False
+    # Check format signature
+    if format_type.upper() == 'PNG':
+        # PNG signature: 137 80 78 71 13 10 26 10 (hex: 89 50 4E 47 0D 0A 1A 0A)
+        png_signature = b'\x89PNG\r\n\x1a\n'
+        if not image_bytes.startswith(png_signature):
+            logger.warning("Image validation failed: not a valid PNG format")
+            return False
+    elif format_type.upper() == 'WEBP':
+        # WebP signature: RIFF....WEBP
+        if not (image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:16]):
+            logger.warning("Image validation failed: not a valid WebP format")
+            return False
     
-    logger.debug(f"Image validation passed: {image_size} bytes")
+    logger.debug(f"Image validation passed: {image_size} bytes ({format_type})")
     return True
 
 
@@ -163,13 +227,16 @@ def generate_product_image(
     model_id: str = DEFAULT_MODEL_ID,
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
-    max_retries: int = DEFAULT_MAX_RETRIES
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    use_webp: bool = True,
+    webp_quality: int = 85
 ) -> Optional[bytes]:
     """
     Generate product image using Nova Canvas.
     
     Generates a product image based on product data, with retry logic
-    and exponential backoff for handling transient failures.
+    and exponential backoff for handling transient failures. Optionally
+    converts to WebP format for better compression.
     
     Args:
         product: Product dictionary with name, description, origin, roast_level
@@ -177,9 +244,11 @@ def generate_product_image(
         width: Image width in pixels
         height: Image height in pixels
         max_retries: Maximum retry attempts
+        use_webp: Convert PNG to WebP for better compression (default True)
+        webp_quality: WebP quality 0-100 (default 85)
         
     Returns:
-        Image bytes (PNG format) or None if generation fails after all retries
+        Image bytes (WebP or PNG format) or None if generation fails after all retries
     """
     # Generate prompt from product data
     prompt = create_image_prompt(product)
@@ -236,11 +305,11 @@ def generate_product_image(
             
             # Decode base64 image from response
             image_base64 = response_body['images'][0]
-            image_bytes = base64.b64decode(image_base64)
+            png_bytes = base64.b64decode(image_base64)
             
-            # Validate image
-            if not validate_image(image_bytes):
-                logger.warning(f"Image validation failed for product {product_id}")
+            # Validate PNG image
+            if not validate_image(png_bytes, 'PNG'):
+                logger.warning(f"PNG validation failed for product {product_id}")
                 if attempt < max_retries - 1:
                     delay = _calculate_backoff_with_jitter(attempt)
                     logger.info(f"Retrying after {delay:.2f}s...")
@@ -248,8 +317,28 @@ def generate_product_image(
                     continue
                 return None
             
-            logger.info(f"Successfully generated image for product {product_id} ({len(image_bytes)} bytes)")
-            return image_bytes
+            # Convert to WebP if requested
+            if use_webp:
+                try:
+                    webp_bytes = convert_png_to_webp(png_bytes, quality=webp_quality)
+                    
+                    # Validate WebP image
+                    if not validate_image(webp_bytes, 'WEBP'):
+                        logger.warning(f"WebP validation failed for product {product_id}, using PNG")
+                        final_bytes = png_bytes
+                    else:
+                        final_bytes = webp_bytes
+                        logger.info(f"Successfully generated WebP image for product {product_id} "
+                                  f"({len(png_bytes)} bytes PNG → {len(webp_bytes)} bytes WebP, "
+                                  f"{100 * (1 - len(webp_bytes)/len(png_bytes)):.1f}% reduction)")
+                except Exception as e:
+                    logger.warning(f"WebP conversion failed for product {product_id}: {e}, using PNG")
+                    final_bytes = png_bytes
+            else:
+                final_bytes = png_bytes
+                logger.info(f"Successfully generated PNG image for product {product_id} ({len(png_bytes)} bytes)")
+            
+            return final_bytes
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')

@@ -38,9 +38,9 @@ def format_product_for_response(product: Dict) -> Dict:
         product: Product document from OpenSearch
     
     Returns:
-        Formatted product dictionary
+        Formatted product dictionary with CloudFront image URL
     """
-    return {
+    formatted = {
         "product_id": product.get("product_id", ""),
         "name": product.get("name", ""),
         "description": product.get("description", ""),
@@ -48,8 +48,10 @@ def format_product_for_response(product: Dict) -> Dict:
         "roast_level": product.get("roast_level", ""),
         "flavor_profile": product.get("flavor_profile", []),
         "price": product.get("price", 0.0),
-        "image_url": product.get("image_url", "")
+        "image_url": product.get("image_url", "")  # CloudFront URL
     }
+    
+    return formatted
 
 def fetch_image_as_base64(image_url: str, timeout: int = 5) -> Optional[str]:
     """

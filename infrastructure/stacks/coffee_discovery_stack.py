@@ -270,8 +270,8 @@ class CoffeeDiscoveryStack(Stack):
                 }
             ),
             role=lambda_role,
-            timeout=Duration.seconds(30),
-            memory_size=512,
+            timeout=Duration.seconds(60),  # Increased for larger responses
+            memory_size=1024,  # Increased for better performance
             architecture=lambda_.Architecture.ARM_64,  # Match the build architecture (ARM64 on Mac)
             environment={
                 "OPENSEARCH_ENDPOINT": opensearch_collection.attr_collection_endpoint,

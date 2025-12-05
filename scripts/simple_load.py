@@ -30,7 +30,6 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from image_generator import generate_product_image, encode_image_base64
 from mcp_server.embeddings import EmbeddingsGenerator
 
 def main():
@@ -52,24 +51,11 @@ def main():
     products = data['products']
     print(f"Loaded {len(products)} products")
     
-    # Generate images
-    print("\nGenerating AI images...")
+    # Images use Unsplash URLs from products.json (ChatGPT CSP compatible)
+    print("\nUsing Unsplash image URLs from products.json (ChatGPT CSP compatible)...")
     for i, product in enumerate(products):
         product_name = product['name']
-        print(f"Generating image {i+1}/{len(products)}: {product_name}...")
-        
-        image_bytes = generate_product_image(
-            product=product,
-            model_id='amazon.nova-canvas-v1:0',
-            width=512,
-            height=512
-        )
-        
-        if image_bytes:
-            product['image_base64'] = encode_image_base64(image_bytes)
-            print(f"  ✅ Generated ({len(image_bytes)} bytes)")
-        else:
-            print(f"  ❌ Failed - will use image_url fallback")
+        print(f"  {i+1}/{len(products)}: {product_name} - ✅ {product['image_url']}")
     
     # Generate embeddings
     print("\nGenerating embeddings...")
@@ -123,11 +109,6 @@ def main():
                         "flavor_profile": {"type": "keyword"},
                         "price": {"type": "float"},
                         "image_url": {"type": "keyword"},
-                        "image_base64": {
-                            "type": "keyword",
-                            "index": False,
-                            "doc_values": False
-                        },
                         "description_embedding": {
                             "type": "knn_vector",
                             "dimension": 1536,
