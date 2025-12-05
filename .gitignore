@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# AWS CDK
+cdk.out/
+.cdk.staging/
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Credentials and tokens
+cognito_tokens*.txt
+*_tokens.txt
+credentials.json
+
+# Lambda dependencies (bundled by CDK, not committed)
+lambda/*/
+lambda/*.py
+lambda/*.so
+lambda/*.dist-info/
+!lambda/mcp_handler.py
+!lambda/requirements.txt
+!lambda/mcp_server/

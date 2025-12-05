@@ -1,0 +1,244 @@
+{
+  "products": [
+    {
+      "product_id": "ethiopian-yirgacheffe-light",
+      "name": "Ethiopian Yirgacheffe",
+      "description": "A bright and floral light roast from the birthplace of coffee. This exceptional bean offers delicate notes of jasmine and bergamot with a tea-like body. Perfect for pour-over brewing methods.",
+      "origin": "Ethiopia",
+      "roast_level": "light",
+      "flavor_profile": ["floral", "fruity", "citrus"],
+      "price": 18.99,
+      "image_url": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400"
+    },
+    {
+      "product_id": "colombian-supremo-medium",
+      "name": "Colombian Supremo",
+      "description": "A classic medium roast showcasing Colombia's finest beans. Balanced and smooth with notes of caramel and toasted nuts. An excellent everyday coffee that never disappoints.",
+      "origin": "Colombia",
+      "roast_level": "medium",
+      "flavor_profile": ["nutty", "chocolatey", "caramel"],
+      "price": 15.99,
+      "image_url": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400"
+    },
+    {
+      "product_id": "brazilian-santos-dark",
+      "name": "Brazilian Santos Dark",
+      "description": "A bold dark roast with low acidity and full body. Rich chocolate and roasted nut flavors dominate this smooth, satisfying brew. Ideal for espresso or French press.",
+      "origin": "Brazil",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "nutty", "earthy"],
+      "price": 14.50,
+      "image_url": "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400"
+    },
+    {
+      "product_id": "kenyan-aa-medium",
+      "name": "Kenyan AA",
+      "description": "A vibrant medium roast with bright acidity and complex fruit notes. This premium grade coffee delivers blackcurrant and wine-like characteristics with a crisp finish.",
+      "origin": "Kenya",
+      "roast_level": "medium",
+      "flavor_profile": ["fruity", "citrus", "wine-like"],
+      "price": 21.99,
+      "image_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400"
+    },
+    {
+      "product_id": "guatemalan-antigua-medium",
+      "name": "Guatemalan Antigua",
+      "description": "Grown in volcanic soil at high altitude, this medium roast offers a rich, full body with spicy and smoky undertones. Notes of dark chocolate and subtle fruit create a complex cup.",
+      "origin": "Guatemala",
+      "roast_level": "medium",
+      "flavor_profile": ["spicy", "chocolatey", "smoky"],
+      "price": 17.50,
+      "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
+    },
+    {
+      "product_id": "ethiopian-sidamo-light",
+      "name": "Ethiopian Sidamo",
+      "description": "A delicate light roast with pronounced blueberry and lemon notes. This naturally processed coffee showcases Ethiopia's unique terroir with a syrupy body and lingering sweetness.",
+      "origin": "Ethiopia",
+      "roast_level": "light",
+      "flavor_profile": ["fruity", "floral", "berry"],
+      "price": 19.99,
+      "image_url": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=400"
+    },
+    {
+      "product_id": "colombian-huila-light",
+      "name": "Colombian Huila",
+      "description": "A bright light roast from Colombia's premier coffee region. Clean and sweet with notes of red apple, honey, and a hint of citrus. Exceptional clarity and balance.",
+      "origin": "Colombia",
+      "roast_level": "light",
+      "flavor_profile": ["fruity", "citrus", "honey"],
+      "price": 16.99,
+      "image_url": "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=400"
+    },
+    {
+      "product_id": "brazilian-cerrado-medium",
+      "name": "Brazilian Cerrado",
+      "description": "A smooth medium roast with low acidity and sweet chocolate notes. This versatile coffee offers a creamy body with hints of hazelnut and brown sugar. Great for all brewing methods.",
+      "origin": "Brazil",
+      "roast_level": "medium",
+      "flavor_profile": ["chocolatey", "nutty", "sweet"],
+      "price": 13.99,
+      "image_url": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400"
+    },
+    {
+      "product_id": "kenyan-nyeri-light",
+      "name": "Kenyan Nyeri",
+      "description": "An exceptional light roast with intense fruit-forward flavors. Bright acidity balanced with notes of blackberry, grapefruit, and brown sugar. A true specialty coffee experience.",
+      "origin": "Kenya",
+      "roast_level": "light",
+      "flavor_profile": ["fruity", "citrus", "berry"],
+      "price": 23.50,
+      "image_url": "https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400"
+    },
+    {
+      "product_id": "guatemalan-huehuetenango-dark",
+      "name": "Guatemalan Huehuetenango",
+      "description": "A rich dark roast from Guatemala's highest growing region. Bold and smoky with dark chocolate and caramelized sugar notes. Full-bodied with a clean finish.",
+      "origin": "Guatemala",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "smoky", "caramel"],
+      "price": 18.99,
+      "image_url": "https://images.unsplash.com/photo-1501492673258-8aae14a1f4a3?w=400"
+    },
+    {
+      "product_id": "ethiopian-harrar-medium",
+      "name": "Ethiopian Harrar",
+      "description": "A wild and exotic medium roast with distinctive wine-like qualities. Dry-processed to enhance fruity notes of blueberry and strawberry with a hint of cinnamon spice.",
+      "origin": "Ethiopia",
+      "roast_level": "medium",
+      "flavor_profile": ["fruity", "wine-like", "spicy"],
+      "price": 20.99,
+      "image_url": "https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400"
+    },
+    {
+      "product_id": "colombian-narino-dark",
+      "name": "Colombian Nariño",
+      "description": "A bold dark roast from Colombia's southern highlands. Rich and full-bodied with notes of dark chocolate, molasses, and roasted almonds. Low acidity with a velvety finish.",
+      "origin": "Colombia",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "nutty", "earthy"],
+      "price": 17.99,
+      "image_url": "https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400"
+    },
+    {
+      "product_id": "brazilian-bourbon-light",
+      "name": "Brazilian Yellow Bourbon",
+      "description": "A rare light roast featuring the prized yellow bourbon varietal. Sweet and delicate with notes of honey, vanilla, and stone fruit. Exceptionally smooth with a creamy mouthfeel.",
+      "origin": "Brazil",
+      "roast_level": "light",
+      "flavor_profile": ["fruity", "honey", "sweet"],
+      "price": 22.99,
+      "image_url": "https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=400"
+    },
+    {
+      "product_id": "kenyan-kiambu-dark",
+      "name": "Kenyan Kiambu",
+      "description": "A unique dark roast that preserves Kenya's signature brightness. Bold yet complex with notes of dark berries, cocoa, and a hint of black pepper. Surprisingly balanced for a dark roast.",
+      "origin": "Kenya",
+      "roast_level": "dark",
+      "flavor_profile": ["fruity", "chocolatey", "spicy"],
+      "price": 24.99,
+      "image_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400"
+    },
+    {
+      "product_id": "guatemalan-atitlan-light",
+      "name": "Guatemalan Atitlán",
+      "description": "A bright light roast from the shores of Lake Atitlán. Floral and fruity with notes of orange blossom, peach, and milk chocolate. Silky body with a clean, sweet finish.",
+      "origin": "Guatemala",
+      "roast_level": "light",
+      "flavor_profile": ["floral", "fruity", "chocolatey"],
+      "price": 19.50,
+      "image_url": "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=400"
+    },
+    {
+      "product_id": "ethiopian-guji-medium",
+      "name": "Ethiopian Guji",
+      "description": "A captivating medium roast from the Guji zone. Natural processing brings out intense strawberry and tropical fruit flavors with a syrupy body. Floral aromatics with a long, sweet finish.",
+      "origin": "Ethiopia",
+      "roast_level": "medium",
+      "flavor_profile": ["fruity", "floral", "tropical"],
+      "price": 21.50,
+      "image_url": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400"
+    },
+    {
+      "product_id": "colombian-tolima-medium",
+      "name": "Colombian Tolima",
+      "description": "A well-balanced medium roast with classic Colombian characteristics. Notes of caramel, red apple, and toasted almonds. Medium body with bright acidity and a clean finish.",
+      "origin": "Colombia",
+      "roast_level": "medium",
+      "flavor_profile": ["nutty", "fruity", "caramel"],
+      "price": 16.50,
+      "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
+    },
+    {
+      "product_id": "brazilian-mogiana-dark",
+      "name": "Brazilian Mogiana",
+      "description": "A robust dark roast from Brazil's Mogiana region. Full-bodied and bold with notes of dark chocolate, toasted nuts, and a hint of tobacco. Perfect for those who love a strong, traditional coffee.",
+      "origin": "Brazil",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "nutty", "earthy"],
+      "price": 12.99,
+      "image_url": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=400"
+    },
+    {
+      "product_id": "kenyan-muranga-medium",
+      "name": "Kenyan Murang'a",
+      "description": "A lively medium roast with Kenya's characteristic brightness. Juicy and complex with notes of blackcurrant, tomato, and brown sugar. Crisp acidity with a wine-like finish.",
+      "origin": "Kenya",
+      "roast_level": "medium",
+      "flavor_profile": ["fruity", "wine-like", "citrus"],
+      "price": 22.50,
+      "image_url": "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=400"
+    },
+    {
+      "product_id": "guatemalan-coban-medium",
+      "name": "Guatemalan Cobán",
+      "description": "A distinctive medium roast from the rainy Cobán region. Full-bodied with earthy undertones and notes of cocoa, cinnamon, and dried fruit. Unique terroir creates a memorable cup.",
+      "origin": "Guatemala",
+      "roast_level": "medium",
+      "flavor_profile": ["earthy", "spicy", "chocolatey"],
+      "price": 17.99,
+      "image_url": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400"
+    },
+    {
+      "product_id": "ethiopian-limu-dark",
+      "name": "Ethiopian Limu",
+      "description": "An unusual dark roast that maintains Ethiopian character. Washed processing creates a clean cup with notes of dark chocolate, spice, and subtle fruit. Medium body with low acidity.",
+      "origin": "Ethiopia",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "spicy", "fruity"],
+      "price": 19.99,
+      "image_url": "https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400"
+    },
+    {
+      "product_id": "brazilian-sul-de-minas-medium",
+      "name": "Brazilian Sul de Minas",
+      "description": "A crowd-pleasing medium roast from Brazil's largest coffee region. Smooth and sweet with notes of milk chocolate, hazelnut, and caramel. Low acidity makes it perfect for any time of day.",
+      "origin": "Brazil",
+      "roast_level": "medium",
+      "flavor_profile": ["chocolatey", "nutty", "caramel"],
+      "price": 14.99,
+      "image_url": "https://images.unsplash.com/photo-1501492673258-8aae14a1f4a3?w=400"
+    },
+    {
+      "product_id": "guatemalan-fraijanes-dark",
+      "name": "Guatemalan Fraijanes",
+      "description": "A powerful dark roast from volcanic highlands. Bold and intense with notes of dark chocolate, cedar, and a hint of smoke. Full-bodied with a long, satisfying finish.",
+      "origin": "Guatemala",
+      "roast_level": "dark",
+      "flavor_profile": ["chocolatey", "smoky", "earthy"],
+      "price": 16.99,
+      "image_url": "https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400"
+    },
+    {
+      "product_id": "kenyan-embu-light",
+      "name": "Kenyan Embu",
+      "description": "A spectacular light roast showcasing Kenya's finest qualities. Bright and juicy with notes of raspberry, grapefruit, and brown sugar. Complex acidity with a silky, tea-like body.",
+      "origin": "Kenya",
+      "roast_level": "light",
+      "flavor_profile": ["fruity", "citrus", "berry"],
+      "price": 25.99,
+      "image_url": "https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400"
+    }
+  ]
+}
