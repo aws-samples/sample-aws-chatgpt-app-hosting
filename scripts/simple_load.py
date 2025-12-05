@@ -20,6 +20,7 @@ If this script fails with 403:
 4. Ensure AWS_PAGER="" is set to avoid CLI hangs
 """
 import json
+import os
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
@@ -28,7 +29,9 @@ from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from image_generator import generate_product_image, encode_image_base64
+from mcp_server.embeddings import EmbeddingsGenerator
 
 def main():
     # Configuration - get from environment or CDK outputs
@@ -68,6 +71,15 @@ def main():
         else:
             print(f"  ❌ Failed - will use image_url fallback")
     
+    # Generate embeddings
+    print("\nGenerating embeddings...")
+    embeddings_gen = EmbeddingsGenerator()
+    for i, product in enumerate(products):
+        text = f"{product['name']} {product['description']} {product['origin']} {' '.join(product['flavor_profile'])}"
+        embedding = embeddings_gen.generate_embedding(text)
+        product['description_embedding'] = embedding
+        print(f"  {i+1}/{len(products)}: {product['name']} - ✅ embedded")
+    
     # Set up OpenSearch client
     print("\nConnecting to OpenSearch...")
     credentials = boto3.Session().get_credentials()
@@ -88,6 +100,57 @@ def main():
         timeout=30
     )
     print("✅ Connected")
+    
+    # Create index with proper knn_vector mapping if it doesn't exist
+    print(f"\nChecking if index '{index_name}' exists...")
+    try:
+        if not client.indices.exists(index=index_name):
+            print(f"Creating index '{index_name}' with knn_vector mapping...")
+            index_body = {
+                "settings": {
+                    "index": {
+                        "knn": True,
+                        "knn.algo_param.ef_search": 512
+                    }
+                },
+                "mappings": {
+                    "properties": {
+                        "product_id": {"type": "keyword"},
+                        "name": {"type": "text"},
+                        "description": {"type": "text"},
+                        "origin": {"type": "keyword"},
+                        "roast_level": {"type": "keyword"},
+                        "flavor_profile": {"type": "keyword"},
+                        "price": {"type": "float"},
+                        "image_url": {"type": "keyword"},
+                        "image_base64": {
+                            "type": "keyword",
+                            "index": False,
+                            "doc_values": False
+                        },
+                        "description_embedding": {
+                            "type": "knn_vector",
+                            "dimension": 1536,
+                            "method": {
+                                "name": "hnsw",
+                                "space_type": "cosinesimil",
+                                "engine": "nmslib",
+                                "parameters": {
+                                    "ef_construction": 512,
+                                    "m": 16
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            client.indices.create(index=index_name, body=index_body)
+            print("✅ Index created with knn_vector mapping")
+        else:
+            print(f"✅ Index '{index_name}' already exists")
+    except Exception as e:
+        print(f"⚠️  Could not check/create index (may already exist): {e}")
+        print("   Continuing with indexing...")
     
     # Index products
     print(f"\nIndexing {len(products)} products...")

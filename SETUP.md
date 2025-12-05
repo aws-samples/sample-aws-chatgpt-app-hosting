@@ -52,9 +52,10 @@ See full detailed instructions in README.md
 
 ## Troubleshooting
 
-- **403 errors**: Wait 2-5 minutes, try `python3 scripts/simple_load.py`
+- **403 errors**: Wait 2-5 minutes after deployment, then retry. OpenSearch Serverless permissions are eventually consistent.
 - **CLI hangs**: `export AWS_PAGER=""`
 - **No data**: Verify with OpenSearch query (see README)
+- **If load_catalog.py fails**: Use `python3 scripts/simple_load.py` as a fallback (creates index and loads data)
 
 For more help, see:
 - `OPENSEARCH-QUICKREF.md`

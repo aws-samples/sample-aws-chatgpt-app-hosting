@@ -440,17 +440,21 @@ Solution: Ensure you're in the correct AWS account and region
 **Problem:** load_catalog.py fails with "OpenSearch connection error" or 403 Forbidden
 ```
 Solution: OpenSearch Serverless permissions are eventually consistent
-  1. Wait 2-5 minutes after any policy changes
+  1. Wait 2-5 minutes after CDK deployment completes
   2. Verify credentials: aws sts get-caller-identity
   3. Check access policy includes your role:
      export AWS_PAGER=""
      aws opensearchserverless get-access-policy --name coffee-products-access --type data
-  4. If load_catalog.py fails but you can read data, try the simple loader:
+  4. Use the simple loader as a reliable alternative:
      python3 scripts/simple_load.py
   5. Ensure AWS_PAGER="" is set to avoid CLI commands hanging
   
-  Note: The simple_load.py script uses a minimal approach that often works
-  when the full load_catalog.py script encounters permission issues.
+  Note: The simple_load.py script:
+  - Creates the index with proper knn_vector mapping
+  - Generates embeddings for semantic search
+  - Generates AI product images
+  - Uses a minimal approach that handles permission timing issues better
+  - Is the recommended approach if load_catalog.py encounters issues
 ```
 
 **Problem:** load_catalog.py fails with "Bedrock API error"
