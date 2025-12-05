@@ -139,8 +139,7 @@ def main():
         try:
             response = client.index(
                 index=index_name,
-                body=product,
-                refresh=False
+                body=product
             )
             print(f"  {i+1}/{len(products)}: {product['name']} - ✅ indexed")
         except Exception as e:
