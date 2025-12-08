@@ -193,6 +193,138 @@ def lambda_handler(event, context):
                                 'openWorldHint': False,
                                 'readOnlyHint': True
                             }
+                        },
+                        {
+                            'name': 'add_to_cart',
+                            'title': 'Add to Cart',
+                            'description': 'Add a coffee product to the shopping cart.',
+                            'inputSchema': {
+                                'type': 'object',
+                                'properties': {
+                                    'product_id': {
+                                        'type': 'string',
+                                        'description': 'Unique product identifier'
+                                    },
+                                    'quantity': {
+                                        'type': 'integer',
+                                        'description': 'Number of items to add',
+                                        'default': 1
+                                    }
+                                },
+                                'required': ['product_id']
+                            },
+                            '_meta': {
+                                'openai/outputTemplate': 'ui://widget/cart.html',
+                                'openai/toolInvocation/invoking': 'Adding to cart...',
+                                'openai/toolInvocation/invoked': 'Added to cart!',
+                                'openai/widgetAccessible': True,
+                                'openai/resultCanProduceWidget': True
+                            },
+                            'annotations': {
+                                'destructiveHint': False,
+                                'openWorldHint': False,
+                                'readOnlyHint': False
+                            }
+                        },
+                        {
+                            'name': 'view_cart',
+                            'title': 'View Cart',
+                            'description': 'View current shopping cart contents.',
+                            'inputSchema': {
+                                'type': 'object',
+                                'properties': {}
+                            },
+                            '_meta': {
+                                'openai/outputTemplate': 'ui://widget/cart.html',
+                                'openai/toolInvocation/invoking': 'Loading cart...',
+                                'openai/toolInvocation/invoked': 'Cart loaded!',
+                                'openai/widgetAccessible': True,
+                                'openai/resultCanProduceWidget': True
+                            },
+                            'annotations': {
+                                'destructiveHint': False,
+                                'openWorldHint': False,
+                                'readOnlyHint': True
+                            }
+                        },
+                        {
+                            'name': 'update_cart_quantity',
+                            'title': 'Update Cart Quantity',
+                            'description': 'Update the quantity of an item in the cart.',
+                            'inputSchema': {
+                                'type': 'object',
+                                'properties': {
+                                    'product_id': {
+                                        'type': 'string',
+                                        'description': 'Product identifier'
+                                    },
+                                    'quantity': {
+                                        'type': 'integer',
+                                        'description': 'New quantity (0 to remove item)'
+                                    }
+                                },
+                                'required': ['product_id', 'quantity']
+                            },
+                            '_meta': {
+                                'openai/outputTemplate': 'ui://widget/cart.html',
+                                'openai/toolInvocation/invoking': 'Updating quantity...',
+                                'openai/toolInvocation/invoked': 'Quantity updated!',
+                                'openai/widgetAccessible': True,
+                                'openai/resultCanProduceWidget': True
+                            },
+                            'annotations': {
+                                'destructiveHint': False,
+                                'openWorldHint': False,
+                                'readOnlyHint': False
+                            }
+                        },
+                        {
+                            'name': 'remove_from_cart',
+                            'title': 'Remove from Cart',
+                            'description': 'Remove an item from the shopping cart.',
+                            'inputSchema': {
+                                'type': 'object',
+                                'properties': {
+                                    'product_id': {
+                                        'type': 'string',
+                                        'description': 'Product identifier to remove'
+                                    }
+                                },
+                                'required': ['product_id']
+                            },
+                            '_meta': {
+                                'openai/outputTemplate': 'ui://widget/cart.html',
+                                'openai/toolInvocation/invoking': 'Removing item...',
+                                'openai/toolInvocation/invoked': 'Item removed!',
+                                'openai/widgetAccessible': True,
+                                'openai/resultCanProduceWidget': True
+                            },
+                            'annotations': {
+                                'destructiveHint': False,
+                                'openWorldHint': False,
+                                'readOnlyHint': False
+                            }
+                        },
+                        {
+                            'name': 'clear_cart',
+                            'title': 'Clear Cart',
+                            'description': 'Remove all items from the shopping cart.',
+                            'inputSchema': {
+                                'type': 'object',
+                                'properties': {}
+                            },
+                            '_meta': {
+                                'openai/outputTemplate': 'ui://widget/cart.html',
+                                'openai/toolInvocation/invoking': 'Clearing cart...',
+                                'openai/toolInvocation/invoked': 'Cart cleared!',
+                                'openai/widgetAccessible': True,
+                                'openai/resultCanProduceWidget': True
+                            },
+                            'annotations': {
+                                'destructiveHint': True,
+                                'openWorldHint': False,
+                                'readOnlyHint': False
+                            }
                         }
                     ]
                 },
@@ -208,6 +340,13 @@ def lambda_handler(event, context):
             
             # Import and call the actual tool functions
             from mcp_server.tools import search_products, get_product_details, refine_preferences
+            from mcp_server.cart_tools import (
+                add_to_cart_tool,
+                view_cart_tool,
+                update_cart_quantity_tool,
+                remove_from_cart_tool,
+                clear_cart_tool
+            )
             
             if tool_name == 'search_products_tool':
                 result = search_products(
@@ -222,6 +361,22 @@ def lambda_handler(event, context):
                     tool_arguments.get('similar_to'),
                     tool_arguments.get('filters')
                 )
+            elif tool_name == 'add_to_cart':
+                result = add_to_cart_tool(
+                    tool_arguments.get('product_id'),
+                    tool_arguments.get('quantity', 1)
+                )
+            elif tool_name == 'view_cart':
+                result = view_cart_tool()
+            elif tool_name == 'update_cart_quantity':
+                result = update_cart_quantity_tool(
+                    tool_arguments.get('product_id'),
+                    tool_arguments.get('quantity')
+                )
+            elif tool_name == 'remove_from_cart':
+                result = remove_from_cart_tool(tool_arguments.get('product_id'))
+            elif tool_name == 'clear_cart':
+                result = clear_cart_tool()
             else:
                 raise ValueError(f"Unknown tool: {tool_name}")
             
@@ -263,6 +418,31 @@ def lambda_handler(event, context):
                     'openai/toolInvocation/invoking': 'Refining your search...',
                     'openai/toolInvocation/invoked': 'Refined results ready!'
                 }
+            elif tool_name == 'add_to_cart':
+                tool_meta = {
+                    'openai/toolInvocation/invoking': 'Adding to cart...',
+                    'openai/toolInvocation/invoked': 'Added to cart!'
+                }
+            elif tool_name == 'view_cart':
+                tool_meta = {
+                    'openai/toolInvocation/invoking': 'Loading cart...',
+                    'openai/toolInvocation/invoked': 'Cart loaded!'
+                }
+            elif tool_name == 'update_cart_quantity':
+                tool_meta = {
+                    'openai/toolInvocation/invoking': 'Updating quantity...',
+                    'openai/toolInvocation/invoked': 'Quantity updated!'
+                }
+            elif tool_name == 'remove_from_cart':
+                tool_meta = {
+                    'openai/toolInvocation/invoking': 'Removing item...',
+                    'openai/toolInvocation/invoked': 'Item removed!'
+                }
+            elif tool_name == 'clear_cart':
+                tool_meta = {
+                    'openai/toolInvocation/invoking': 'Clearing cart...',
+                    'openai/toolInvocation/invoked': 'Cart cleared!'
+                }
             
             response_result['_meta'] = tool_meta
             
@@ -280,6 +460,12 @@ def lambda_handler(event, context):
                 'openai/resultCanProduceWidget': True
             }
             
+            cart_widget_meta = {
+                'openai/outputTemplate': 'ui://widget/cart.html',
+                'openai/widgetAccessible': True,
+                'openai/resultCanProduceWidget': True
+            }
+            
             response_data = {
                 'jsonrpc': '2.0',
                 'result': {
@@ -291,6 +477,14 @@ def lambda_handler(event, context):
                             'description': 'Interactive web component for displaying coffee products',
                             'mimeType': 'text/html+skybridge',
                             '_meta': widget_meta
+                        },
+                        {
+                            'uri': 'ui://widget/cart.html',
+                            'name': 'Shopping Cart Widget',
+                            'title': 'Shopping Cart Widget',
+                            'description': 'Interactive web component for displaying shopping cart',
+                            'mimeType': 'text/html+skybridge',
+                            '_meta': cart_widget_meta
                         }
                     ]
                 },
@@ -301,6 +495,12 @@ def lambda_handler(event, context):
         elif jsonrpc_method == 'resources/templates/list':
             widget_meta = {
                 'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                'openai/widgetAccessible': True,
+                'openai/resultCanProduceWidget': True
+            }
+            
+            cart_widget_meta = {
+                'openai/outputTemplate': 'ui://widget/cart.html',
                 'openai/widgetAccessible': True,
                 'openai/resultCanProduceWidget': True
             }
@@ -316,6 +516,14 @@ def lambda_handler(event, context):
                             'description': 'Interactive web component for displaying coffee products',
                             'mimeType': 'text/html+skybridge',
                             '_meta': widget_meta
+                        },
+                        {
+                            'uriTemplate': 'ui://widget/cart.html',
+                            'name': 'Shopping Cart Widget',
+                            'title': 'Shopping Cart Widget',
+                            'description': 'Interactive web component for displaying shopping cart',
+                            'mimeType': 'text/html+skybridge',
+                            '_meta': cart_widget_meta
                         }
                     ]
                 },
@@ -326,7 +534,7 @@ def lambda_handler(event, context):
         elif jsonrpc_method == 'resources/read':
             uri = body_json.get('params', {}).get('uri')
             if uri == 'ui://widget/coffee-discovery.html':
-                web_component_path = Path(__file__).parent / 'mcp_server' / 'web_component_simple.html'
+                web_component_path = Path(__file__).parent / 'mcp_server' / 'web_component.html'
                 with open(web_component_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
@@ -351,6 +559,37 @@ def lambda_handler(event, context):
                                 'mimeType': 'text/html+skybridge',
                                 'text': content,
                                 '_meta': widget_meta
+                            }
+                        ]
+                    },
+                    'id': jsonrpc_id
+                }
+            elif uri == 'ui://widget/cart.html':
+                cart_component_path = Path(__file__).parent / 'mcp_server' / 'cart_component.html'
+                with open(cart_component_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                cart_widget_meta = {
+                    'openai/outputTemplate': 'ui://widget/cart.html',
+                    'openai/widgetAccessible': True,
+                    'openai/resultCanProduceWidget': True,
+                    'openai/widgetPrefersBorder': True,
+                    'openai/widgetDomain': 'https://chatgpt.com',
+                    'openai/widgetCSP': {
+                        'connect_domains': ['https://chatgpt.com'],
+                        'resource_domains': ['https://*.oaistatic.com', 'https://images.unsplash.com']
+                    }
+                }
+                
+                response_data = {
+                    'jsonrpc': '2.0',
+                    'result': {
+                        'contents': [
+                            {
+                                'uri': uri,
+                                'mimeType': 'text/html+skybridge',
+                                'text': content,
+                                '_meta': cart_widget_meta
                             }
                         ]
                     },

@@ -7,6 +7,13 @@ import logging
 from typing import Optional, List, Dict
 from fastmcp import FastMCP
 from tools import search_products, get_product_details, refine_preferences
+from cart_tools import (
+    add_to_cart_tool,
+    view_cart_tool,
+    update_cart_quantity_tool,
+    remove_from_cart_tool,
+    clear_cart_tool
+)
 
 # Configure logging
 logging.basicConfig(
@@ -23,7 +30,7 @@ mcp = FastMCP(
     stateless_http=True
 )
 
-# Register web component as MCP resource
+# Register web components as MCP resources
 @mcp.resource(
     uri="ui://widget/coffee-discovery.html",
     name="Coffee Discovery Widget",
@@ -47,6 +54,31 @@ def get_web_component() -> str:
             return f.read()
     except Exception as e:
         logger.error(f"Failed to load web component: {e}")
+        raise
+
+@mcp.resource(
+    uri="ui://widget/cart.html",
+    name="Shopping Cart Widget",
+    description="Interactive web component for displaying shopping cart",
+    mime_type="text/html+skybridge",
+    annotations={
+        "openai/widgetPrefersBorder": True
+    }
+)
+def get_cart_component() -> str:
+    """
+    Return the cart web component HTML content.
+    
+    Returns:
+        HTML content of the cart web component
+    """
+    try:
+        # Read the cart component HTML file
+        cart_component_path = os.path.join(os.path.dirname(__file__), "cart_component.html")
+        with open(cart_component_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception as e:
+        logger.error(f"Failed to load cart component: {e}")
         raise
 
 # Register MCP tools with OpenAI metadata
@@ -109,10 +141,94 @@ def refine_preferences_tool(
     """
     return refine_preferences(exclude, similar_to, filters)
 
+# Register cart tools
+
+@mcp.tool(
+    annotations={
+        "openai/outputTemplate": "ui://widget/cart.html"
+    }
+)
+def add_to_cart(product_id: str, quantity: int = 1) -> Dict:
+    """
+    Add a coffee product to the shopping cart.
+    
+    Args:
+        product_id: Unique product identifier (e.g., "ethiopian-yirgacheffe-light")
+        quantity: Number of items to add (default: 1)
+    
+    Returns:
+        Dictionary with updated cart contents and message
+    """
+    return add_to_cart_tool(product_id, quantity)
+
+@mcp.tool(
+    annotations={
+        "openai/outputTemplate": "ui://widget/cart.html"
+    }
+)
+def view_cart() -> Dict:
+    """
+    View current shopping cart contents.
+    
+    Returns:
+        Dictionary with cart items, totals, and message
+    """
+    return view_cart_tool()
+
+@mcp.tool(
+    annotations={
+        "openai/outputTemplate": "ui://widget/cart.html"
+    }
+)
+def update_cart_quantity(product_id: str, quantity: int) -> Dict:
+    """
+    Update the quantity of an item in the cart.
+    
+    Args:
+        product_id: Product identifier
+        quantity: New quantity (0 to remove item)
+    
+    Returns:
+        Dictionary with updated cart contents and message
+    """
+    return update_cart_quantity_tool(product_id, quantity)
+
+@mcp.tool(
+    annotations={
+        "openai/outputTemplate": "ui://widget/cart.html"
+    }
+)
+def remove_from_cart(product_id: str) -> Dict:
+    """
+    Remove an item from the shopping cart.
+    
+    Args:
+        product_id: Product identifier to remove
+    
+    Returns:
+        Dictionary with updated cart contents and message
+    """
+    return remove_from_cart_tool(product_id)
+
+@mcp.tool(
+    annotations={
+        "openai/outputTemplate": "ui://widget/cart.html"
+    }
+)
+def clear_cart() -> Dict:
+    """
+    Remove all items from the shopping cart.
+    
+    Returns:
+        Dictionary with empty cart and confirmation message
+    """
+    return clear_cart_tool()
+
 if __name__ == "__main__":
     logger.info("Starting Coffee Discovery MCP Server...")
     logger.info(f"Host: 0.0.0.0, Port: 8000")
     logger.info(f"Stateless HTTP: True")
     logger.info("Registered tools: search_products_tool, get_product_details_tool, refine_preferences_tool")
-    logger.info("Registered resource: ui://widget/coffee-discovery.html")
+    logger.info("Registered cart tools: add_to_cart, view_cart, update_cart_quantity, remove_from_cart, clear_cart")
+    logger.info("Registered resources: ui://widget/coffee-discovery.html, ui://widget/cart.html")
     mcp.run()

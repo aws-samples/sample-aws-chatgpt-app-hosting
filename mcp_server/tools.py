@@ -3,8 +3,6 @@ MCP Tools for Coffee Discovery
 Implements search_products, get_product_details, and refine_preferences tools
 """
 import logging
-import base64
-import requests
 from typing import Dict, List, Optional, Any
 from opensearch_client import OpenSearchClient
 from embeddings import EmbeddingsGenerator
@@ -52,63 +50,6 @@ def format_product_for_response(product: Dict) -> Dict:
     }
     
     return formatted
-
-def fetch_image_as_base64(image_url: str, timeout: int = 5) -> Optional[str]:
-    """
-    Fetch an image from URL and convert to base64
-    
-    Args:
-        image_url: URL of the image to fetch
-        timeout: Request timeout in seconds
-    
-    Returns:
-        Base64-encoded image data or None if fetch fails
-    """
-    try:
-        response = requests.get(image_url, timeout=timeout)
-        response.raise_for_status()
-        return base64.b64encode(response.content).decode('utf-8')
-    except Exception as e:
-        logger.warning(f"Failed to fetch image from {image_url}: {e}")
-        return None
-
-def format_products_with_images(products: List[Dict], intro_message: str = "") -> List[Dict]:
-    """
-    Format products as rich text content (ChatGPT doesn't support images yet)
-    
-    Args:
-        products: List of formatted product dictionaries
-        intro_message: Optional introductory message
-    
-    Returns:
-        List with single text content block containing all products
-    """
-    # Build rich text response with clickable image links
-    content_text = intro_message
-    if intro_message:
-        content_text += "\n\n"
-    
-    for i, product in enumerate(products, 1):
-        content_text += f"### {i}. {product['name']}\n\n"
-        
-        # Add clickable image link (ChatGPT may render as link)
-        if product.get('image_url'):
-            content_text += f"🖼️ [View Product Image]({product['image_url']})\n\n"
-        
-        # Product details with emojis for visual appeal
-        content_text += f"📍 **Origin:** {product['origin']}\n"
-        content_text += f"☕ **Roast Level:** {product['roast_level'].title()}\n"
-        content_text += f"💰 **Price:** ${product['price']:.2f}\n"
-        content_text += f"🌟 **Flavors:** {', '.join(product['flavor_profile'])}\n\n"
-        content_text += f"{product['description']}\n\n"
-        content_text += "---\n\n"
-    
-    return [
-        {
-            "type": "text",
-            "text": content_text
-        }
-    ]
 
 def search_products(preferences: str, filters: Optional[Dict] = None) -> Dict[str, Any]:
     """
@@ -161,14 +102,8 @@ def search_products(preferences: str, filters: Optional[Dict] = None) -> Dict[st
             filters=combined_filters if combined_filters else None
         )
         
-        # Format products for response and deduplicate by product_id
-        seen_ids = set()
-        formatted_products = []
-        for p in products:
-            product_id = p.get("product_id")
-            if product_id and product_id not in seen_ids:
-                seen_ids.add(product_id)
-                formatted_products.append(format_product_for_response(p))
+        # Format products for response
+        formatted_products = [format_product_for_response(p) for p in products]
         
         # Create response message
         if formatted_products:
@@ -187,12 +122,13 @@ def search_products(preferences: str, filters: Optional[Dict] = None) -> Dict[st
         else:
             message = "No products found matching your preferences. Try adjusting your criteria."
         
-        # Format products with images as content blocks
-        content_blocks = format_products_with_images(formatted_products, message)
-        
-        # Return BOTH content and structuredContent (working example does this!)
         return {
-            "content": content_blocks,
+            "content": [
+                {
+                    "type": "text",
+                    "text": message
+                }
+            ],
             "structuredContent": {
                 "products": formatted_products,
                 "message": message
@@ -249,46 +185,18 @@ def get_product_details(product_id: str) -> Dict[str, Any]:
         
         if product:
             formatted_product = format_product_for_response(product)
-            
-            # Build detailed product view with clickable image link
-            details_text = f"# {formatted_product['name']}\n\n"
-            
-            # Add clickable image link
-            if formatted_product.get('image_url'):
-                details_text += f"🖼️ [View Product Image]({formatted_product['image_url']})\n\n"
-            
-            # Detailed product information
-            details_text += f"📍 **Origin:** {formatted_product['origin']}\n"
-            details_text += f"☕ **Roast Level:** {formatted_product['roast_level'].title()}\n"
-            details_text += f"🌟 **Flavor Profile:** {', '.join(formatted_product['flavor_profile'])}\n"
-            details_text += f"💰 **Price:** ${formatted_product['price']:.2f}\n\n"
-            details_text += f"**Description:**\n{formatted_product['description']}\n\n"
-            
-            # Add brewing recommendations based on roast level
-            details_text += "**☕ Brewing Recommendations:**\n"
-            if formatted_product['roast_level'] == 'light':
-                details_text += "- **Best for:** Pour-over, V60, Chemex, Cold brew\n"
-                details_text += "- **Grind:** Medium-fine to medium\n"
-                details_text += "- **Water temp:** 195-205°F (90-96°C)\n"
-            elif formatted_product['roast_level'] == 'medium':
-                details_text += "- **Best for:** Drip coffee, French press, Pour-over\n"
-                details_text += "- **Grind:** Medium\n"
-                details_text += "- **Water temp:** 200-205°F (93-96°C)\n"
-            elif formatted_product['roast_level'] == 'dark':
-                details_text += "- **Best for:** Espresso, French press, Moka pot\n"
-                details_text += "- **Grind:** Fine to medium\n"
-                details_text += "- **Water temp:** 190-200°F (88-93°C)\n"
+            message = f"Here are the details for {product.get('name', 'this product')}."
             
             return {
                 "content": [
                     {
                         "type": "text",
-                        "text": details_text
+                        "text": message
                     }
                 ],
                 "structuredContent": {
                     "products": [formatted_product],
-                    "message": f"Details for {formatted_product['name']}"
+                    "message": message
                 }
             }
         else:
@@ -400,14 +308,8 @@ def refine_preferences(
             
             products = filtered_products
         
-        # Format products for response and deduplicate by product_id
-        seen_ids = set()
-        formatted_products = []
-        for p in products:
-            product_id = p.get("product_id")
-            if product_id and product_id not in seen_ids:
-                seen_ids.add(product_id)
-                formatted_products.append(format_product_for_response(p))
+        # Format products for response
+        formatted_products = [format_product_for_response(p) for p in products]
         
         # Create response message
         if formatted_products:
@@ -420,12 +322,13 @@ def refine_preferences(
         else:
             message = "No products found matching your refined criteria. Try adjusting your filters."
         
-        # Format products with images as content blocks
-        content_blocks = format_products_with_images(formatted_products, message)
-        
-        # Return BOTH content and structuredContent (working example does this!)
         return {
-            "content": content_blocks,
+            "content": [
+                {
+                    "type": "text",
+                    "text": message
+                }
+            ],
             "structuredContent": {
                 "products": formatted_products,
                 "message": message

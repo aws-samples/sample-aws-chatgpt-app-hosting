@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_lambda as lambda_,
     aws_apigateway as apigateway,
+    aws_dynamodb as dynamodb,
 )
 from constructs import Construct
 import json
@@ -29,6 +30,12 @@ class CoffeeDiscoveryStack(Stack):
         # Create Lambda execution role
         lambda_role = self._create_lambda_execution_role()
         
+        # Create DynamoDB table for shopping cart
+        cart_table = self._create_cart_table()
+        
+        # Grant Lambda permissions to cart table
+        cart_table.grant_read_write_data(lambda_role)
+        
         # Create OpenSearch Serverless collection
         opensearch_collection = self._create_opensearch_collection(lambda_role)
         
@@ -36,6 +43,7 @@ class CoffeeDiscoveryStack(Stack):
         mcp_lambda = self._create_mcp_lambda(
             lambda_role,
             opensearch_collection,
+            cart_table,
             region
         )
         
@@ -91,6 +99,22 @@ class CoffeeDiscoveryStack(Stack):
             id_token_validity=Duration.minutes(60),
         )
         return user_pool_client
+
+    def _create_cart_table(self) -> dynamodb.Table:
+        """Create DynamoDB table for shopping cart storage."""
+        cart_table = dynamodb.Table(
+            self,
+            "CoffeeCartTable",
+            table_name="coffee-cart",
+            partition_key=dynamodb.Attribute(
+                name="user_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+            time_to_live_attribute="ttl"
+        )
+        return cart_table
 
     def _create_lambda_execution_role(self) -> iam.Role:
         """Create execution role for Lambda function."""
@@ -241,6 +265,7 @@ class CoffeeDiscoveryStack(Stack):
         self,
         lambda_role: iam.Role,
         opensearch_collection: opensearch_serverless.CfnCollection,
+        cart_table: dynamodb.Table,
         region: str,
     ) -> lambda_.Function:
         """Create Lambda function for MCP server with all dependencies bundled together."""
@@ -276,6 +301,7 @@ class CoffeeDiscoveryStack(Stack):
             environment={
                 "OPENSEARCH_ENDPOINT": opensearch_collection.attr_collection_endpoint,
                 "BEDROCK_MODEL_ID": "amazon.titan-embed-text-v1",
+                "DYNAMODB_CART_TABLE": cart_table.table_name,
             },
         )
 
