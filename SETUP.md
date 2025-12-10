@@ -30,15 +30,24 @@ aws configure
 cd infrastructure && npx aws-cdk bootstrap && cd ..
 
 # 4. Deploy
-cd infrastructure && npx cdk deploy && cd ..
+cd infrastructure && npx cdk deploy --all --require-approval never && cd ..
 # SAVE THE OUTPUTS!
 
-# 5. Wait for OpenSearch policies
-sleep 120
-
-# 6. Load data
+# 5. Post-Deployment: Generate and Upload Images
+# Get the values from CDK outputs
 export OPENSEARCH_ENDPOINT=<from-cdk-outputs>
-python3 scripts/load_catalog.py
+export CLOUDFRONT_DOMAIN=<from-cdk-outputs>
+export S3_BUCKET=<from-cdk-outputs>
+
+# Generate AI images and upload to S3 (takes ~2 minutes)
+. infrastructure/.venv/bin/activate
+python3 scripts/generate_all_images.py
+
+# 6. Create OpenSearch Index with knn_vector mapping
+python3 scripts/create_index.py
+
+# 7. Load products into OpenSearch
+python3 scripts/simple_load.py
 
 # 7. Create test user
 export USER_POOL_ID=<from-cdk-outputs>

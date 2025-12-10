@@ -94,21 +94,24 @@ This creates the necessary S3 buckets and IAM roles for CDK deployments.
 
 ### Step 3: Deploy Infrastructure
 
-Deploy the complete stack:
+Deploy both stacks (ImageHostingStack and ChatGPTAppAWSStack):
 
 ```bash
 # If using Finch instead of Docker, set this environment variable:
 export CDK_DOCKER=finch
 
-npx aws-cdk deploy
+npx aws-cdk deploy --all --require-approval never
 ```
 
 The deployment will:
-1. Bundle the MCP server code and dependencies for Lambda (ARM64)
-2. Create Cognito user pool and app client
-3. Create OpenSearch Serverless collection
-4. Create Lambda function with API Gateway endpoint
-5. Set up IAM roles and permissions
+1. **ImageHostingStack**: Create S3 bucket and CloudFront distribution for product images
+2. **ChatGPTAppAWSStack**: 
+   - Bundle the MCP server code and dependencies for Lambda (ARM64)
+   - Create Cognito user pool and app client
+   - Create OpenSearch Serverless collection
+   - Create Lambda function with API Gateway endpoint
+   - Set up IAM roles and permissions
+   - Configure Lambda with CloudFront domain environment variable
 
 **Deployment time:** Approximately 5-10 minutes
 
@@ -117,10 +120,13 @@ The deployment will:
 After deployment completes, **save these output values** - you'll need them for subsequent steps:
 
 ```
+ImageHostingStack.ProductImagesCDNDomain = dXXXXXXXXXXXXXX.cloudfront.net
+ImageHostingStack.ProductImagesBucketName = imagehostingstack-productimagesbucket03bda4c8-XXXXXXXXXX
+
 ChatGPTAppAWSStack.CognitoUserPoolId = us-east-1_XXXXXXXXX
 ChatGPTAppAWSStack.CognitoClientId = XXXXXXXXXXXXXXXXXXXXXXXXXX
 ChatGPTAppAWSStack.CognitoDiscoveryUrl = https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXXXX/.well-known/openid-configuration
-ChatGPTAppAWSStack.OpenSearchEndpoint = XXXXX.us-east-1.aoss.amazonaws.com
+ChatGPTAppAWSStack.OpenSearchEndpoint = https://XXXXX.us-east-1.aoss.amazonaws.com
 ChatGPTAppAWSStack.MCPServerURL = https://XXXXXXXXXX.execute-api.us-east-1.amazonaws.com/prod/mcp
 ```
 
@@ -128,82 +134,100 @@ ChatGPTAppAWSStack.MCPServerURL = https://XXXXXXXXXX.execute-api.us-east-1.amazo
 
 **Tip:** Copy these values to a text file for easy reference.
 
-### Step 5: Load Product Catalog
+### Step 5: Generate and Upload Product Images
 
-Run the data loading script to populate OpenSearch with coffee products.
-
-First, install the required Python dependencies:
-
-```bash
-uv pip install --system opensearch-py requests-aws4auth boto3
-```
-
-Then, set the OpenSearch endpoint from the CDK outputs (Step 4):
+Set the required environment variables from CDK outputs:
 
 ```bash
 export OPENSEARCH_ENDPOINT=<OpenSearchEndpoint from CDK outputs>
+export CLOUDFRONT_DOMAIN=<ProductImagesCDNDomain from CDK outputs>
+export S3_BUCKET=<ProductImagesBucketName from CDK outputs>
 ```
 
-Finally, run the loading script:
+Activate the virtual environment and generate AI images:
 
 ```bash
-python3 scripts/load_catalog.py
+source infrastructure/.venv/bin/activate
+python3 scripts/generate_all_images.py
 ```
 
 This script will:
-- Read products from `data/products.json` (20+ coffee products)
-- Generate AI product images using Amazon Bedrock Nova Canvas (optional)
+- Generate 24 AI product images using Amazon Bedrock Nova Canvas
+- Upload images to S3 bucket
+- Update `data/products.json` with CloudFront URLs
+- Takes approximately 2 minutes to complete
+
+**Expected output:**
+```
+Generating AI Images for All Products
+[1/24] Processing: Ethiopian Yirgacheffe
+  ✓ Image generated (181786 bytes)
+  ✓ Uploaded: https://dXXXXXXXXXXXXXX.cloudfront.net/images/ethiopian-yirgacheffe-light.png
+...
+Summary:
+  Total processed: 24
+  Successful: 24
+  Failed: 0
+```
+
+### Step 6: Create OpenSearch Index
+
+Create the OpenSearch index with proper knn_vector mapping for semantic search:
+
+```bash
+python3 scripts/create_index.py
+```
+
+This creates the `coffee-products` index with:
+- Text fields for product metadata
+- knn_vector field for embeddings (dimension: 1536)
+- Proper HNSW configuration for vector search
+
+### Step 7: Load Product Catalog
+
+Load products into OpenSearch with embeddings and CloudFront URLs:
+
+```bash
+python3 scripts/simple_load.py
+```
+
+This script will:
+- Read products from `data/products.json` (24 coffee products with CloudFront URLs)
 - Generate vector embeddings using Amazon Bedrock Titan
-- Index products in OpenSearch Serverless
-- Create appropriate index mappings for text and vector search
+- Index products in OpenSearch Serverless with embeddings
+
+**Expected output:**
+```
+Loading products from data/products.json...
+Loaded 24 products
+
+Using CloudFront image URLs from products.json...
+  1/24: Ethiopian Yirgacheffe - ✅ https://dXXXXXXXXXXXXXX.cloudfront.net/images/...
+  ...
+
+Generating embeddings...
+  1/24: Ethiopian Yirgacheffe - ✅ embedded
+  ...
+
+Indexing 24 products...
+  1/24: Ethiopian Yirgacheffe - ✅ indexed
+  ...
+
+✅ Done!
+```
 
 **Requirements:**
 - AWS credentials with permissions to:
   - Write to OpenSearch Serverless
   - Invoke Bedrock embeddings API (amazon.titan-embed-text-v1)
-  - Invoke Bedrock Nova Canvas API (amazon.nova-canvas-v1:0) for image generation
 - `OPENSEARCH_ENDPOINT` environment variable set to the endpoint from CDK outputs
-
-**Image Generation Options:**
-
-By default, the script generates AI product images using Nova Canvas:
-```bash
-python3 scripts/load_catalog.py  # Generates images for all products
-```
-
-To skip image generation and use stock photos:
-```bash
-python3 scripts/load_catalog.py --skip-images
-```
-
-To regenerate all images (even if they already exist):
-```bash
-python3 scripts/load_catalog.py --regenerate-images
-```
-
-To customize image dimensions:
-```bash
-python3 scripts/load_catalog.py --image-width 1024 --image-height 1024
-```
-
-**Expected output:**
-```
-Image generation summary:
-  Total products: 24
-  Successfully generated: 24
-  Failed: 0
-  Total time: 96.5s
-  Average time per image: 4.0s
-Successfully indexed 24 products to OpenSearch
-```
 
 **Note:** 
 - The script is idempotent - running it multiple times won't create duplicates
-- Generated images are stored as base64 data directly in OpenSearch (no S3 needed)
-- Image generation takes ~3-5 seconds per product
-- If image generation fails, products will use the stock image_url as fallback
+- Images are served via CloudFront CDN for fast delivery
+- Vector embeddings enable semantic search capabilities
 
-### Step 6: Create Cognito Test User
+### Step 8: Create Cognito Test User
 
 Create a test user for authentication:
 

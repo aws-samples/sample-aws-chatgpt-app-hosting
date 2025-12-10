@@ -258,7 +258,10 @@ def generate_product_image(
     
     # Initialize Bedrock runtime client
     try:
-        bedrock_runtime = boto3.client('bedrock-runtime')
+        # Use region from environment or default to us-east-1
+        import os
+        region = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION') or 'us-east-1'
+        bedrock_runtime = boto3.client('bedrock-runtime', region_name=region)
     except Exception as e:
         logger.error(f"Failed to initialize Bedrock client: {e}")
         return None

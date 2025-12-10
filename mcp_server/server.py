@@ -85,7 +85,12 @@ def get_cart_component() -> str:
 
 @mcp.tool(
     annotations={
-        "openai/outputTemplate": "ui://widget/coffee-discovery.html"
+        "openai/outputTemplate": "ui://widget/coffee-discovery.html",
+        "openai/widgetCSP": {
+            "resource_domains": [
+                os.environ.get("CLOUDFRONT_DOMAIN", "")
+            ]
+        }
     }
 )
 def search_products_tool(preferences: str, filters: Optional[Dict] = None) -> Dict:
@@ -103,7 +108,12 @@ def search_products_tool(preferences: str, filters: Optional[Dict] = None) -> Di
 
 @mcp.tool(
     annotations={
-        "openai/outputTemplate": "ui://widget/coffee-discovery.html"
+        "openai/outputTemplate": "ui://widget/coffee-discovery.html",
+        "openai/widgetCSP": {
+            "resource_domains": [
+                os.environ.get("CLOUDFRONT_DOMAIN", "")
+            ]
+        }
     }
 )
 def get_product_details_tool(product_id: str) -> Dict:
@@ -120,7 +130,12 @@ def get_product_details_tool(product_id: str) -> Dict:
 
 @mcp.tool(
     annotations={
-        "openai/outputTemplate": "ui://widget/coffee-discovery.html"
+        "openai/outputTemplate": "ui://widget/coffee-discovery.html",
+        "openai/widgetCSP": {
+            "resource_domains": [
+                os.environ.get("CLOUDFRONT_DOMAIN", "")
+            ]
+        }
     }
 )
 def refine_preferences_tool(

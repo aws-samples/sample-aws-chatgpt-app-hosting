@@ -36,6 +36,9 @@ class CoffeeDiscoveryStack(Stack):
         # Grant Lambda permissions to cart table
         cart_table.grant_read_write_data(lambda_role)
         
+        # Add S3 read permissions to Lambda role
+        self._add_s3_permissions_to_lambda(lambda_role)
+        
         # Create OpenSearch Serverless collection
         opensearch_collection = self._create_opensearch_collection(lambda_role)
         
@@ -152,6 +155,22 @@ class CoffeeDiscoveryStack(Stack):
         )
 
         return lambda_role
+    
+    def _add_s3_permissions_to_lambda(self, lambda_role: iam.Role) -> None:
+        """Add S3 read permissions to Lambda role for product images bucket."""
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                ],
+                resources=[
+                    f"arn:aws:s3:::chatgpt-apps-aws-{self.account}",
+                    f"arn:aws:s3:::chatgpt-apps-aws-{self.account}/*",
+                ],
+            )
+        )
 
     def _create_opensearch_collection(
         self, lambda_role: iam.Role
@@ -270,6 +289,11 @@ class CoffeeDiscoveryStack(Stack):
     ) -> lambda_.Function:
         """Create Lambda function for MCP server with all dependencies bundled together."""
         
+        # Import CloudFront domain from ImageHostingStack via Fn::ImportValue
+        # The value will be exported by ImageHostingStack with export name
+        from aws_cdk import Fn
+        cloudfront_domain = Fn.import_value("ImageHostingStack:ProductImagesCDNDomain")
+        
         # Create Lambda function with all dependencies bundled
         mcp_function = lambda_.Function(
             self,
@@ -302,6 +326,7 @@ class CoffeeDiscoveryStack(Stack):
                 "OPENSEARCH_ENDPOINT": opensearch_collection.attr_collection_endpoint,
                 "BEDROCK_MODEL_ID": "amazon.titan-embed-text-v1",
                 "DYNAMODB_CART_TABLE": cart_table.table_name,
+                "CLOUDFRONT_DOMAIN": f"https://{cloudfront_domain}",
             },
         )
 
