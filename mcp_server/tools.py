@@ -285,21 +285,24 @@ def refine_preferences(
                 should_exclude = False
                 
                 for exclusion in exclude:
-                    exclusion_lower = exclusion.lower()
+                    exclusion_lower = exclusion.lower().strip()
+                    # Normalize: remove "roast" suffix for roast level matching
+                    exclusion_normalized = exclusion_lower.replace(" roast", "").strip()
                     
                     # Check if exclusion matches origin
-                    if product.get("origin", "").lower() == exclusion_lower:
+                    if product.get("origin", "").lower() == exclusion_normalized:
                         should_exclude = True
                         break
                     
-                    # Check if exclusion matches roast level
-                    if product.get("roast_level", "").lower() == exclusion_lower:
+                    # Check if exclusion matches roast level (with or without "roast" suffix)
+                    roast_level = product.get("roast_level", "").lower()
+                    if roast_level == exclusion_normalized or roast_level == exclusion_lower:
                         should_exclude = True
                         break
                     
                     # Check if exclusion matches any flavor profile
                     flavor_profiles = product.get("flavor_profile", [])
-                    if any(f.lower() == exclusion_lower for f in flavor_profiles):
+                    if any(f.lower() == exclusion_normalized or f.lower() == exclusion_lower for f in flavor_profiles):
                         should_exclude = True
                         break
                 

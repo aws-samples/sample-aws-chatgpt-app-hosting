@@ -120,7 +120,7 @@ def lambda_handler(event, context):
                                 'required': ['preferences']
                             },
                             '_meta': {
-                                'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                                'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                                 'openai/toolInvocation/invoking': 'Brewing your perfect coffee search...',
                                 'openai/toolInvocation/invoked': 'Found your perfect beans!',
                                 'openai/widgetAccessible': True,
@@ -147,7 +147,7 @@ def lambda_handler(event, context):
                                 'required': ['product_id']
                             },
                             '_meta': {
-                                'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                                'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                                 'openai/toolInvocation/invoking': 'Fetching coffee details...',
                                 'openai/toolInvocation/invoked': 'Here are the details!',
                                 'openai/widgetAccessible': True,
@@ -182,7 +182,7 @@ def lambda_handler(event, context):
                                 }
                             },
                             '_meta': {
-                                'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                                'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                                 'openai/toolInvocation/invoking': 'Refining your search...',
                                 'openai/toolInvocation/invoked': 'Refined results ready!',
                                 'openai/widgetAccessible': True,
@@ -455,7 +455,7 @@ def lambda_handler(event, context):
         # Handle resources/list request
         elif jsonrpc_method == 'resources/list':
             widget_meta = {
-                'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                 'openai/widgetAccessible': True,
                 'openai/resultCanProduceWidget': True
             }
@@ -471,7 +471,7 @@ def lambda_handler(event, context):
                 'result': {
                     'resources': [
                         {
-                            'uri': 'ui://widget/coffee-discovery.html',
+                            'uri': 'ui://widget/coffee-discovery-v2-1.html',
                             'name': 'Coffee Discovery Widget',
                             'title': 'Coffee Discovery Widget',
                             'description': 'Interactive web component for displaying coffee products',
@@ -494,7 +494,7 @@ def lambda_handler(event, context):
         # Handle resources/templates/list request (required by working example)
         elif jsonrpc_method == 'resources/templates/list':
             widget_meta = {
-                'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                 'openai/widgetAccessible': True,
                 'openai/resultCanProduceWidget': True
             }
@@ -510,7 +510,7 @@ def lambda_handler(event, context):
                 'result': {
                     'resourceTemplates': [
                         {
-                            'uriTemplate': 'ui://widget/coffee-discovery.html',
+                            'uriTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                             'name': 'Coffee Discovery Widget',
                             'title': 'Coffee Discovery Widget',
                             'description': 'Interactive web component for displaying coffee products',
@@ -533,20 +533,26 @@ def lambda_handler(event, context):
         # Handle resources/read request
         elif jsonrpc_method == 'resources/read':
             uri = body_json.get('params', {}).get('uri')
-            if uri == 'ui://widget/coffee-discovery.html':
-                web_component_path = Path(__file__).parent / 'mcp_server' / 'web_component.html'
+            if uri == 'ui://widget/coffee-discovery-v2-1.html':
+                web_component_path = Path(__file__).parent / 'mcp_server' / 'web_component_simple.html'
                 with open(web_component_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
+                # Get CloudFront domain from environment variable
+                cloudfront_domain = os.environ.get('CLOUDFRONT_DOMAIN', '')
+                resource_domains = ['https://*.oaistatic.com', 'https://images.unsplash.com']
+                if cloudfront_domain:
+                    resource_domains.append(cloudfront_domain)
+                
                 widget_meta = {
-                    'openai/outputTemplate': 'ui://widget/coffee-discovery.html',
+                    'openai/outputTemplate': 'ui://widget/coffee-discovery-v2-1.html',
                     'openai/widgetAccessible': True,
                     'openai/resultCanProduceWidget': True,
                     'openai/widgetPrefersBorder': True,
                     'openai/widgetDomain': 'https://chatgpt.com',
                     'openai/widgetCSP': {
                         'connect_domains': ['https://chatgpt.com'],
-                        'resource_domains': ['https://*.oaistatic.com', 'https://images.unsplash.com']
+                        'resource_domains': resource_domains
                     }
                 }
                 

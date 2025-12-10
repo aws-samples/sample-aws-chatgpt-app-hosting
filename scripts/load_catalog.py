@@ -468,8 +468,12 @@ def main():
             logger.error("  4. Verify the OpenSearch collection exists and is active")
             sys.exit(2)
         
-        # Step 5: Skip index creation - index already exists
-        logger.info(f"Skipping index creation check - assuming '{args.index_name}' already exists")
+        # Step 5: Create index if it doesn't exist
+        try:
+            create_index_if_not_exists(client, args.index_name)
+        except Exception as e:
+            logger.error(f"Failed to create index: {str(e)}")
+            sys.exit(2)
         
         # Step 6: Generate embeddings
         try:
