@@ -44,7 +44,7 @@ EXAMPLES:
     $0 --pool-id us-west-2_ABC123 --client-id 1234567890abcdef
 
     # Create user with custom username and password
-    $0 -p us-west-2_ABC123 -c 1234567890abcdef -u myuser -w MySecurePass123!
+    $0 -p us-west-2_ABC123 -c <your-client-id> -u myuser -w MySecurePass123!
 
     # Use environment variables
     export USER_POOL_ID=us-west-2_ABC123

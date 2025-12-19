@@ -26,10 +26,10 @@ export CLIENT_ID=<CognitoClientId>
 
 Example values:
 ```bash
-export CLOUDFRONT_DOMAIN=d14yhmh9aqdj57.cloudfront.net
-export S3_BUCKET=imagehostingstack-productimagesbucket03bda4c8-y7ffydl9g4s9
-export OPENSEARCH_ENDPOINT=https://cwwhdzyy20ysoy53ssij.us-east-1.aoss.amazonaws.com
-export USER_POOL_ID=us-east-1_WqFXl0ME9
+export CLOUDFRONT_DOMAIN=<your-cloudfront-domain>
+export S3_BUCKET=<your-s3-bucket-name>
+export OPENSEARCH_ENDPOINT=<your-opensearch-endpoint>
+export USER_POOL_ID=<your-user-pool-id>
 export CLIENT_ID=<your-cognito-client-id>
 ```
 
