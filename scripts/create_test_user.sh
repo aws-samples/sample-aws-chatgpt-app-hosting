@@ -48,7 +48,7 @@ EXAMPLES:
 
     # Use environment variables
     export USER_POOL_ID=us-west-2_ABC123
-    export CLIENT_ID=1234567890abcdef
+    export CLIENT_ID=<your-cognito-client-id>
     $0
 
 EOF

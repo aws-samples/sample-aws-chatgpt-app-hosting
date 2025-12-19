@@ -162,6 +162,7 @@ def generate_all_images(skip_existing=True, delay_seconds=2):
             # Save to temporary file
             with NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                 tmp_file.write(image_bytes)
+                tmp_file.flush()  # Ensure data is written to disk
                 tmp_path = tmp_file.name
             
             try:

@@ -30,7 +30,7 @@ export CLOUDFRONT_DOMAIN=d14yhmh9aqdj57.cloudfront.net
 export S3_BUCKET=imagehostingstack-productimagesbucket03bda4c8-y7ffydl9g4s9
 export OPENSEARCH_ENDPOINT=https://cwwhdzyy20ysoy53ssij.us-east-1.aoss.amazonaws.com
 export USER_POOL_ID=us-east-1_WqFXl0ME9
-export CLIENT_ID=38cosnftr7gi2c1ebmpegn2epn
+export CLIENT_ID=<your-cognito-client-id>
 ```
 
 ## Step 1: Generate and Upload Product Images

@@ -295,6 +295,7 @@ def test_error_reporting_invalid_json():
     
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         f.write("{ invalid json content }")
+        f.flush()  # Ensure data is written to disk
         temp_file = f.name
     
     try:
@@ -317,6 +318,7 @@ def test_error_reporting_missing_products_array():
     # Create temporary JSON file without 'products' key
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         json.dump({"items": []}, f)
+        f.flush()  # Ensure data is written to disk
         temp_file = f.name
     
     try:
@@ -344,6 +346,7 @@ def test_error_reporting_empty_products_array():
     # Create temporary JSON file with empty products array
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         json.dump({"products": []}, f)
+        f.flush()  # Ensure data is written to disk
         temp_file = f.name
     
     try:
@@ -491,6 +494,7 @@ def test_error_reporting_consistency_across_error_types(error_type):
         elif error_type == 'invalid_json':
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                 f.write("{ invalid }")
+                f.flush()  # Ensure data is written to disk
                 temp_file = f.name
             try:
                 load_products_from_file(temp_file)
@@ -500,6 +504,7 @@ def test_error_reporting_consistency_across_error_types(error_type):
         elif error_type == 'missing_products':
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                 json.dump({"items": []}, f)
+                f.flush()  # Ensure data is written to disk
                 temp_file = f.name
             try:
                 load_products_from_file(temp_file)
@@ -509,6 +514,7 @@ def test_error_reporting_consistency_across_error_types(error_type):
         elif error_type == 'empty_products':
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
                 json.dump({"products": []}, f)
+                f.flush()  # Ensure data is written to disk
                 temp_file = f.name
             try:
                 load_products_from_file(temp_file)
