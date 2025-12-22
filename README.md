@@ -132,6 +132,11 @@ ChatGPTAppAWSStack.MCPServerURL = https://XXXXXXXXXX.execute-api.us-east-1.amazo
 
 **Important:** The `MCPServerURL` is your MCP server endpoint that you'll use to connect ChatGPT.
 
+**OAuth 2.0 Endpoints:** The deployment also creates OAuth endpoints for ChatGPT integration:
+- Authorization Server Metadata: `{MCPServerURL}/.well-known/oauth-authorization-server`
+- Authorization Endpoint: `{MCPServerURL}/oauth/authorize`
+- Token Endpoint: `{MCPServerURL}/oauth/token`
+
 **Tip:** Copy these values to a text file for easy reference.
 
 ### Step 5: Generate and Upload Product Images
@@ -310,14 +315,23 @@ If you don't have one already:
 
 ### Step 4: Configure Authentication
 
-**For Testing (Current Setup):**
+**OAuth 2.0 Integration (Recommended):**
+1. Select **OAuth 2.0** for Authentication
+2. Configure the OAuth settings:
+   - **Authorization URL**: `{your-mcp-server-url}/oauth/authorize`
+   - **Token URL**: `{your-mcp-server-url}/oauth/token`
+   - **Client ID**: Any identifier (e.g., "chatgpt_client")
+   - **Scopes**: `openid profile read write`
+3. Save the connector configuration
+4. When prompted, use the test credentials:
+   - **Username**: `testuser`
+   - **Password**: `TestPass123!`
+
+**For Testing Only (Alternative):**
 1. Select **None** for Authentication
 2. Save the connector configuration
 
-**Note:** The current deployment has authentication disabled on the API Gateway endpoint to simplify testing. For production use, you should:
-- Enable Cognito authorization on the API Gateway
-- Configure OAuth in ChatGPT with your `CognitoClientId` and `CognitoDiscoveryUrl`
-- Follow the OAuth flow to obtain access tokens
+**Note:** OAuth 2.0 provides secure authentication backed by AWS Cognito. The "None" option is available for testing but should not be used in production.
 
 ### Step 5: Test the Connection
 
@@ -325,10 +339,13 @@ Once configured, you can start using the Coffee Discovery connector in ChatGPT:
 
 1. Start a new chat
 2. Type a coffee-related query (e.g., "I want a fruity light roast coffee")
-3. ChatGPT will automatically invoke the MCP server tools
-4. Results will be displayed in an interactive web component
+3. If using OAuth, you'll be redirected to authenticate with your test credentials
+4. ChatGPT will automatically invoke the MCP server tools
+5. Results will be displayed in an interactive web component
 
-**Note:** Since authentication is currently disabled, anyone with the API Gateway URL can access the MCP server. For production deployments, enable Cognito authorization.
+**Test Credentials (for OAuth):**
+- Username: `testuser`
+- Password: `TestPass123!`
 
 ## Testing
 
@@ -381,17 +398,23 @@ Try these prompts in ChatGPT to test the integration:
 
 ### Demo/Development Authentication Model
 
-**Important:** This deployment uses a demo/development authentication model:
+**Important:** This deployment includes a complete OAuth 2.0 implementation:
 
-- Access is controlled through manually created Cognito test users
-- The AgentCore endpoint is publicly accessible via HTTPS
-- **No anonymous access** - valid JWT tokens required for all requests
-- Suitable for demonstrations and development
-- **Not recommended for production** without additional security controls
+- **OAuth 2.0 Flow**: Full authorization code flow with PKCE support
+- **Cognito Integration**: AWS Cognito provides user authentication and JWT tokens
+- **Secure Access**: All MCP endpoints require valid JWT tokens
+- **Test User**: Pre-configured test user for immediate testing
+- **ChatGPT Compatible**: OAuth endpoints follow OpenID Connect standards
+
+**OAuth Endpoints Available:**
+- Authorization Server Metadata: `/.well-known/oauth-authorization-server`
+- Authorization Endpoint: `/oauth/authorize`
+- Token Endpoint: `/oauth/token`
+- Dynamic Client Registration: `/oauth/register`
 
 **For production deployments, consider:**
 - Federating Cognito with corporate identity provider
-- Implementing WAF rules for the AgentCore endpoint
+- Implementing WAF rules for additional protection
 - Adding rate limiting and DDoS protection
 - Enabling CloudTrail for audit logging
 
