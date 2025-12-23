@@ -33,8 +33,12 @@ class CoffeeDiscoveryStack(Stack):
         # Create DynamoDB table for shopping cart
         cart_table = self._create_cart_table()
         
-        # Grant Lambda permissions to cart table
+        # Create DynamoDB table for OAuth client registrations
+        oauth_clients_table = self._create_oauth_clients_table()
+        
+        # Grant Lambda permissions to both tables
         cart_table.grant_read_write_data(lambda_role)
+        oauth_clients_table.grant_read_write_data(lambda_role)
         
         # Add S3 read permissions to Lambda role
         self._add_s3_permissions_to_lambda(lambda_role)
@@ -42,15 +46,18 @@ class CoffeeDiscoveryStack(Stack):
         # Create OpenSearch Serverless collection
         opensearch_collection = self._create_opensearch_collection(lambda_role)
         
-        # Create Lambda function for MCP server
+        # Create Lambda function for MCP server (without API_GATEWAY_URL initially)
         mcp_lambda = self._create_mcp_lambda(
             lambda_role,
             opensearch_collection,
             cart_table,
+            oauth_clients_table,
+            user_pool,
+            user_pool_client,
             region
         )
         
-        # Create API Gateway with Cognito authorizer
+        # Create API Gateway with OAuth and MCP endpoints
         api = self._create_api_gateway(
             user_pool,
             mcp_lambda
@@ -93,7 +100,8 @@ class CoffeeDiscoveryStack(Stack):
             user_pool_client_name="coffee-discovery-client",
             generate_secret=False,  # Public client
             auth_flows=cognito.AuthFlow(
-                user_password=True,
+                admin_user_password=True,  # Enable ALLOW_ADMIN_USER_PASSWORD_AUTH for Lambda
+                user_password=True,        # Keep ALLOW_USER_PASSWORD_AUTH for compatibility
                 custom=False,
                 user_srp=False,
             ),
@@ -118,6 +126,22 @@ class CoffeeDiscoveryStack(Stack):
             time_to_live_attribute="ttl"
         )
         return cart_table
+
+    def _create_oauth_clients_table(self) -> dynamodb.Table:
+        """Create DynamoDB table for OAuth client registrations."""
+        oauth_clients_table = dynamodb.Table(
+            self,
+            "OAuthClientsTable",
+            table_name="oauth-clients",
+            partition_key=dynamodb.Attribute(
+                name="client_id",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+            time_to_live_attribute="expires_at"
+        )
+        return oauth_clients_table
 
     def _create_lambda_execution_role(self) -> iam.Role:
         """Create execution role for Lambda function."""
@@ -151,6 +175,19 @@ class CoffeeDiscoveryStack(Stack):
                 resources=[
                     f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1",
                 ],
+            )
+        )
+
+        # Add Cognito permissions for OAuth authentication
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "cognito-idp:AdminInitiateAuth",
+                    "cognito-idp:AdminGetUser",
+                    "cognito-idp:GetUser",
+                ],
+                resources=[f"arn:aws:cognito-idp:{self.region}:{self.account}:userpool/*"],
             )
         )
 
@@ -285,6 +322,9 @@ class CoffeeDiscoveryStack(Stack):
         lambda_role: iam.Role,
         opensearch_collection: opensearch_serverless.CfnCollection,
         cart_table: dynamodb.Table,
+        oauth_clients_table: dynamodb.Table,
+        user_pool: cognito.UserPool,
+        user_pool_client: cognito.UserPoolClient,
         region: str,
     ) -> lambda_.Function:
         """Create Lambda function for MCP server with all dependencies bundled together."""
@@ -300,7 +340,7 @@ class CoffeeDiscoveryStack(Stack):
             "MCPServerFunction",
             function_name="coffee-discovery-mcp",
             runtime=lambda_.Runtime.PYTHON_3_11,
-            handler="mcp_handler.lambda_handler",
+            handler="integrated_handler.lambda_handler",  # Updated to use integrated handler
             code=lambda_.Code.from_asset(
                 "..",  # Start from project root
                 bundling={
@@ -309,8 +349,11 @@ class CoffeeDiscoveryStack(Stack):
                         "bash", "-c",
                         # Install dependencies
                         "pip install -r lambda/requirements.txt -t /asset-output && "
-                        # Copy application code
+                        # Copy application code (including new integrated handler)
                         "cp lambda/mcp_handler.py /asset-output/ && "
+                        "cp lambda/integrated_handler.py /asset-output/ && "
+                        "cp lambda/oauth_handler.py /asset-output/ && "
+                        "cp lambda/cognito_auth.py /asset-output/ && "
                         "cp -r mcp_server /asset-output/ && "
                         # Clean up unnecessary files to reduce package size
                         "find /asset-output -type d -name '__pycache__' -exec rm -rf {} + || true && "
@@ -326,7 +369,11 @@ class CoffeeDiscoveryStack(Stack):
                 "OPENSEARCH_ENDPOINT": opensearch_collection.attr_collection_endpoint,
                 "BEDROCK_MODEL_ID": "amazon.titan-embed-text-v1",
                 "DYNAMODB_CART_TABLE": cart_table.table_name,
+                "DYNAMODB_OAUTH_CLIENTS_TABLE": oauth_clients_table.table_name,
                 "CLOUDFRONT_DOMAIN": f"https://{cloudfront_domain}",
+                # OAuth configuration
+                "COGNITO_USER_POOL_ID": user_pool.user_pool_id,
+                "COGNITO_CLIENT_ID": user_pool_client.user_pool_client_id,
             },
         )
 
@@ -337,14 +384,14 @@ class CoffeeDiscoveryStack(Stack):
         user_pool: cognito.UserPool,
         mcp_lambda: lambda_.Function,
     ) -> apigateway.RestApi:
-        """Create API Gateway with Cognito authorizer."""
+        """Create API Gateway with OAuth and MCP endpoints."""
         
         # Create REST API
         api = apigateway.RestApi(
             self,
             "MCPServerAPI",
             rest_api_name="coffee-discovery-mcp-api",
-            description="API Gateway for Coffee Discovery MCP Server",
+            description="API Gateway for Coffee Discovery MCP Server with OAuth",
             deploy_options=apigateway.StageOptions(
                 stage_name="prod",
                 throttling_rate_limit=100,
@@ -352,25 +399,165 @@ class CoffeeDiscoveryStack(Stack):
             ),
         )
         
+        # Create Lambda integration (without automatic permissions)
+        lambda_integration = apigateway.LambdaIntegration(
+            mcp_lambda,
+            proxy=True
+        )
+        
         # Create /mcp resource
         mcp_resource = api.root.add_resource("mcp")
         
-        # Add POST method without authorization (for ChatGPT compatibility)
-        # Note: For production, implement OAuth discovery endpoints in Lambda
+        # Add GET method for OAuth discovery
         mcp_resource.add_method(
-            "POST",
-            apigateway.LambdaIntegration(mcp_lambda),
+            "GET",
+            lambda_integration,
             authorization_type=apigateway.AuthorizationType.NONE,
         )
         
-        # Add CORS support
+        # Add POST method for MCP JSON-RPC (with optional OAuth)
+        mcp_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # Create OAuth endpoints
+        self._add_oauth_endpoints(api, mcp_lambda, lambda_integration, mcp_resource)
+        
+        # Add CORS support to /mcp
         mcp_resource.add_cors_preflight(
             allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
+            allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization"],
         )
         
         return api
+    
+    def _add_oauth_endpoints(self, api: apigateway.RestApi, mcp_lambda: lambda_.Function, lambda_integration: apigateway.LambdaIntegration, mcp_resource: apigateway.Resource) -> None:
+        """Add OAuth 2.0 endpoints to API Gateway at both root and /mcp levels."""
+        
+        # Create /.well-known resource at root level
+        well_known_resource = api.root.add_resource(".well-known")
+        
+        # OAuth authorization server metadata at root
+        oauth_auth_server_resource = well_known_resource.add_resource("oauth-authorization-server")
+        oauth_auth_server_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth protected resource metadata at root
+        oauth_protected_resource = well_known_resource.add_resource("oauth-protected-resource")
+        oauth_protected_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # Create /oauth resource at root level
+        oauth_resource = api.root.add_resource("oauth")
+        
+        # OAuth authorization endpoint at root
+        authorize_resource = oauth_resource.add_resource("authorize")
+        authorize_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        authorize_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth token endpoint at root
+        token_resource = oauth_resource.add_resource("token")
+        token_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth Dynamic Client Registration endpoint at root (RFC 7591)
+        register_resource = oauth_resource.add_resource("register")
+        register_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # Add CORS to root OAuth endpoints
+        for resource in [oauth_auth_server_resource, oauth_protected_resource, 
+                        authorize_resource, token_resource, register_resource]:
+            resource.add_cors_preflight(
+                allow_origins=["*"],
+                allow_methods=["GET", "POST", "OPTIONS"],
+                allow_headers=["Content-Type", "Authorization"],
+            )
+        
+        # ===== NOW ADD THE SAME ENDPOINTS UNDER /mcp/ =====
+        
+        # Create /mcp/.well-known resource
+        mcp_well_known_resource = mcp_resource.add_resource(".well-known")
+        
+        # OAuth authorization server metadata under /mcp
+        mcp_oauth_auth_server_resource = mcp_well_known_resource.add_resource("oauth-authorization-server")
+        mcp_oauth_auth_server_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth protected resource metadata under /mcp
+        mcp_oauth_protected_resource = mcp_well_known_resource.add_resource("oauth-protected-resource")
+        mcp_oauth_protected_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # Create /mcp/oauth resource
+        mcp_oauth_resource = mcp_resource.add_resource("oauth")
+        
+        # OAuth authorization endpoint under /mcp
+        mcp_authorize_resource = mcp_oauth_resource.add_resource("authorize")
+        mcp_authorize_resource.add_method(
+            "GET",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        mcp_authorize_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth token endpoint under /mcp
+        mcp_token_resource = mcp_oauth_resource.add_resource("token")
+        mcp_token_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # OAuth Dynamic Client Registration endpoint under /mcp (RFC 7591)
+        mcp_register_resource = mcp_oauth_resource.add_resource("register")
+        mcp_register_resource.add_method(
+            "POST",
+            lambda_integration,
+            authorization_type=apigateway.AuthorizationType.NONE,
+        )
+        
+        # Add CORS to /mcp OAuth endpoints
+        for resource in [mcp_oauth_auth_server_resource, mcp_oauth_protected_resource, 
+                        mcp_authorize_resource, mcp_token_resource, mcp_register_resource]:
+            resource.add_cors_preflight(
+                allow_origins=["*"],
+                allow_methods=["GET", "POST", "OPTIONS"],
+                allow_headers=["Content-Type", "Authorization"],
+            )
 
     def _create_outputs(
         self,

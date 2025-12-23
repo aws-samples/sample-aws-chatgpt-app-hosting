@@ -1,0 +1,6 @@
+# GitLeaks ignore file
+# This file suppresses historical security warnings that have been resolved
+
+# Historical API key warnings from deleted files
+3d31d3fb5b4d606d1e04ae26faaf8d5e87a703d1:docs/POST-DEPLOYMENT.md:generic-api-key:33
+948dc05f2ff83a76fbe147c60680f329664cadd2:scripts/create_test_user.sh:generic-api-key:51
