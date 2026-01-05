@@ -12,7 +12,7 @@
         "citrus"
       ],
       "price": 18.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/ethiopian-yirgacheffe-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/ethiopian-yirgacheffe-light.png"
     },
     {
       "product_id": "colombian-supremo-medium",
@@ -26,7 +26,7 @@
         "caramel"
       ],
       "price": 15.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/colombian-supremo-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/colombian-supremo-medium.png"
     },
     {
       "product_id": "brazilian-santos-dark",
@@ -40,7 +40,7 @@
         "earthy"
       ],
       "price": 14.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/brazilian-santos-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/brazilian-santos-dark.png"
     },
     {
       "product_id": "kenyan-aa-medium",
@@ -54,7 +54,7 @@
         "wine-like"
       ],
       "price": 21.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/kenyan-aa-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/kenyan-aa-medium.png"
     },
     {
       "product_id": "guatemalan-antigua-medium",
@@ -68,7 +68,7 @@
         "smoky"
       ],
       "price": 17.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/guatemalan-antigua-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/guatemalan-antigua-medium.png"
     },
     {
       "product_id": "ethiopian-sidamo-light",
@@ -82,7 +82,7 @@
         "berry"
       ],
       "price": 19.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/ethiopian-sidamo-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/ethiopian-sidamo-light.png"
     },
     {
       "product_id": "colombian-huila-light",
@@ -96,7 +96,7 @@
         "honey"
       ],
       "price": 16.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/colombian-huila-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/colombian-huila-light.png"
     },
     {
       "product_id": "brazilian-cerrado-medium",
@@ -110,7 +110,7 @@
         "sweet"
       ],
       "price": 13.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/brazilian-cerrado-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/brazilian-cerrado-medium.png"
     },
     {
       "product_id": "kenyan-nyeri-light",
@@ -124,7 +124,7 @@
         "berry"
       ],
       "price": 23.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/kenyan-nyeri-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/kenyan-nyeri-light.png"
     },
     {
       "product_id": "guatemalan-huehuetenango-dark",
@@ -138,7 +138,7 @@
         "caramel"
       ],
       "price": 18.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/guatemalan-huehuetenango-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/guatemalan-huehuetenango-dark.png"
     },
     {
       "product_id": "ethiopian-harrar-medium",
@@ -152,7 +152,7 @@
         "spicy"
       ],
       "price": 20.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/ethiopian-harrar-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/ethiopian-harrar-medium.png"
     },
     {
       "product_id": "colombian-narino-dark",
@@ -166,7 +166,7 @@
         "earthy"
       ],
       "price": 17.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/colombian-narino-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/colombian-narino-dark.png"
     },
     {
       "product_id": "brazilian-bourbon-light",
@@ -180,7 +180,7 @@
         "sweet"
       ],
       "price": 22.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/brazilian-bourbon-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/brazilian-bourbon-light.png"
     },
     {
       "product_id": "kenyan-kiambu-dark",
@@ -194,7 +194,7 @@
         "spicy"
       ],
       "price": 24.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/kenyan-kiambu-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/kenyan-kiambu-dark.png"
     },
     {
       "product_id": "guatemalan-atitlan-light",
@@ -208,7 +208,7 @@
         "chocolatey"
       ],
       "price": 19.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/guatemalan-atitlan-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/guatemalan-atitlan-light.png"
     },
     {
       "product_id": "ethiopian-guji-medium",
@@ -222,7 +222,7 @@
         "tropical"
       ],
       "price": 21.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/ethiopian-guji-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/ethiopian-guji-medium.png"
     },
     {
       "product_id": "colombian-tolima-medium",
@@ -236,7 +236,7 @@
         "caramel"
       ],
       "price": 16.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/colombian-tolima-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/colombian-tolima-medium.png"
     },
     {
       "product_id": "brazilian-mogiana-dark",
@@ -250,7 +250,7 @@
         "earthy"
       ],
       "price": 12.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/brazilian-mogiana-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/brazilian-mogiana-dark.png"
     },
     {
       "product_id": "kenyan-muranga-medium",
@@ -264,7 +264,7 @@
         "citrus"
       ],
       "price": 22.5,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/kenyan-muranga-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/kenyan-muranga-medium.png"
     },
     {
       "product_id": "guatemalan-coban-medium",
@@ -278,7 +278,7 @@
         "chocolatey"
       ],
       "price": 17.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/guatemalan-coban-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/guatemalan-coban-medium.png"
     },
     {
       "product_id": "ethiopian-limu-dark",
@@ -292,7 +292,7 @@
         "fruity"
       ],
       "price": 19.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/ethiopian-limu-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/ethiopian-limu-dark.png"
     },
     {
       "product_id": "brazilian-sul-de-minas-medium",
@@ -306,7 +306,7 @@
         "caramel"
       ],
       "price": 14.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/brazilian-sul-de-minas-medium.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/brazilian-sul-de-minas-medium.png"
     },
     {
       "product_id": "guatemalan-fraijanes-dark",
@@ -320,7 +320,7 @@
         "earthy"
       ],
       "price": 16.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/guatemalan-fraijanes-dark.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/guatemalan-fraijanes-dark.png"
     },
     {
       "product_id": "kenyan-embu-light",
@@ -334,7 +334,7 @@
         "berry"
       ],
       "price": 25.99,
-      "image_url": "https://d1c2rz40hpdb2r.cloudfront.net/images/kenyan-embu-light.png"
+      "image_url": "https://d2ebh663ruacyu.cloudfront.net/images/kenyan-embu-light.png"
     }
   ]
 }
