@@ -241,9 +241,4 @@ def clear_cart() -> Dict:
 
 if __name__ == "__main__":
     logger.info("Starting Coffee Discovery MCP Server...")
-    logger.info(f"Host: 0.0.0.0, Port: 8000")
-    logger.info(f"Stateless HTTP: True")
-    logger.info("Registered tools: search_products_tool, get_product_details_tool, refine_preferences_tool")
-    logger.info("Registered cart tools: add_to_cart, view_cart, update_cart_quantity, remove_from_cart, clear_cart")
-    logger.info("Registered resources: ui://widget/coffee-discovery.html, ui://widget/cart.html")
-    mcp.run()
+    mcp.run(transport="http", host="0.0.0.0", port=8000)

@@ -245,7 +245,7 @@ export REGION=us-east-1
 export USER_POOL_ID=<CognitoUserPoolId from CDK outputs>
 export CLIENT_ID=<CognitoClientId from CDK outputs>
 export USERNAME=testuser
-export PASSWORD=TestPass123!
+export PASSWORD=<your-password>
 
 source scripts/create_test_user.sh
 ```
@@ -272,7 +272,7 @@ Set permanent password:
 aws cognito-idp admin-set-user-password \
   --user-pool-id <CognitoUserPoolId> \
   --username testuser \
-  --password TestPass123! \
+  --password <your-password> \
   --permanent
 ```
 
@@ -281,7 +281,7 @@ Generate access token:
 aws cognito-idp initiate-auth \
   --auth-flow USER_PASSWORD_AUTH \
   --client-id <CognitoClientId> \
-  --auth-parameters USERNAME=testuser,PASSWORD=TestPass123!
+  --auth-parameters USERNAME=testuser,PASSWORD=<your-password>
 ```
 
 **Save the `AccessToken` from the response** - you'll use this as the bearer token.
@@ -325,7 +325,7 @@ If you don't have one already:
 3. Save the connector configuration
 4. When prompted, use the test credentials:
    - **Username**: `testuser`
-   - **Password**: `TestPass123!`
+   - **Password**: `<your-password>`
 
 **For Testing Only (Alternative):**
 1. Select **None** for Authentication
@@ -345,7 +345,7 @@ Once configured, you can start using the Coffee Discovery connector in ChatGPT:
 
 **Test Credentials (for OAuth):**
 - Username: `testuser`
-- Password: `TestPass123!`
+- Password: `<your-password>`
 
 ## Testing
 

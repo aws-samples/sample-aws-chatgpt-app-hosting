@@ -12,6 +12,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 import json
+import os
 
 
 class CoffeeDiscoveryStack(Stack):
@@ -342,7 +343,19 @@ class CoffeeDiscoveryStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="integrated_handler.lambda_handler",  # Updated to use integrated handler
             code=lambda_.Code.from_asset(
-                "..",  # Start from project root
+                os.path.join(os.path.dirname(__file__), "../.."),
+                exclude=[
+                    ".DocumentRevisions-V100",
+                    ".Spotlight-V100",
+                    ".fseventsd",
+                    ".Trashes",
+                    ".TemporaryItems",
+                    "infrastructure/.venv",
+                    "infrastructure/cdk.out",
+                    ".git",
+                    "**/__pycache__",
+                    "**/*.pyc",
+                ],
                 bundling={
                     "image": lambda_.Runtime.PYTHON_3_11.bundling_image,
                     "command": [

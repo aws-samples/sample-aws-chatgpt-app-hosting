@@ -246,8 +246,14 @@ def handle_authorization_page(event: Dict[str, Any], context: Any) -> Dict[str, 
             })
         }
     
-    # Generate authorization page HTML (now includes scope)
-    html_content = generate_authorization_html(client_id, redirect_uri, state, scope)
+    # Escape user-supplied OAuth params before rendering HTML to prevent XSS
+    import html as html_lib
+    html_content = generate_authorization_html(
+        html_lib.escape(client_id),
+        html_lib.escape(redirect_uri),
+        html_lib.escape(state) if state else state,
+        html_lib.escape(scope) if scope else scope
+    )
     
     return {
         'statusCode': 200,
@@ -255,7 +261,7 @@ def handle_authorization_page(event: Dict[str, Any], context: Any) -> Dict[str, 
             'Content-Type': 'text/html',
             'Access-Control-Allow-Origin': '*'
         },
-        'body': html_content
+        'body': html_content  # nosemgrep: python.aws-lambda.security.tainted-html-response.tainted-html-response
     }
 
 def handle_authorization_approval(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
