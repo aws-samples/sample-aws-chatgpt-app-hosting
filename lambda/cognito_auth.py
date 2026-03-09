@@ -16,6 +16,12 @@ import hashlib
 
 logger = logging.getLogger(__name__)
 
+_dynamodb = boto3.resource('dynamodb')
+
+def _tokens_table():
+    table_name = os.environ.get('DYNAMODB_OAUTH_TOKENS_TABLE', 'oauth-tokens')
+    return _dynamodb.Table(table_name)
+
 class CognitoAuthenticator:
     """
     Handles Cognito authentication and JWT token operations for OAuth
@@ -25,18 +31,11 @@ class CognitoAuthenticator:
         """Initialize Cognito client and configuration"""
         self.cognito_client = boto3.client('cognito-idp')
         
-        # Get Cognito configuration from environment or CDK outputs
         self.user_pool_id = os.environ.get('COGNITO_USER_POOL_ID')
         self.client_id = os.environ.get('COGNITO_CLIENT_ID')
         
         if not self.user_pool_id or not self.client_id:
             logger.warning("Cognito configuration not found in environment variables")
-            # For now, we'll handle this gracefully and log the issue
-            # In production, this should be properly configured
-        
-        # In-memory storage for OAuth tokens mapped to Cognito JWTs
-        # In production, this should use DynamoDB or similar persistent storage
-        self.access_tokens: Dict[str, Dict[str, Any]] = {}
     
     def validate_credentials(self, username: str, password: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
@@ -119,207 +118,133 @@ class CognitoAuthenticator:
             return False, {'error': 'internal_error', 'message': 'Internal authentication error'}
     
     def generate_oauth_access_token(self, user_info: Dict[str, Any]) -> str:
-        """
-        Generate OAuth access token backed by Cognito JWT
-        
-        Args:
-            user_info: User information from successful Cognito authentication
-            
-        Returns:
-            OAuth access token string
-        """
-        # Generate unique OAuth token
+        """Generate OAuth access token and persist it in DynamoDB."""
         oauth_token = f"oauth_{uuid.uuid4().hex}"
-        
-        # Store mapping from OAuth token to Cognito JWT and user info
-        self.access_tokens[oauth_token] = {
+        item = {
+            'oauth_token': oauth_token,
             'cognito_access_token': user_info['cognito_access_token'],
             'cognito_id_token': user_info['cognito_id_token'],
             'cognito_refresh_token': user_info['cognito_refresh_token'],
             'username': user_info['username'],
-            'user_attributes': user_info['user_attributes'],
+            'user_attributes': user_info.get('user_attributes', {}),
             'expires_at': user_info['expires_at'],
             'created_at': int(time.time())
         }
-        
-        logger.info(f"Generated OAuth access token for user: {user_info['username']}")
+        _tokens_table().put_item(Item=item)
+        logger.info(f"Stored OAuth access token in DynamoDB for user: {user_info['username']}")
         return oauth_token
-    
+
     def validate_oauth_access_token(self, oauth_token: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        """
-        Validate OAuth access token and verify underlying Cognito JWT
-        
-        Args:
-            oauth_token: OAuth access token to validate
-            
-        Returns:
-            Tuple of (valid, user_info_dict or None)
-        """
+        """Validate OAuth access token via DynamoDB lookup and Cognito verification."""
         if not oauth_token:
             return False, None
-        
-        # Check if token exists in our mapping
-        token_info = self.access_tokens.get(oauth_token)
+
+        response = _tokens_table().get_item(Key={'oauth_token': oauth_token})
+        token_info = response.get('Item')
+
         if not token_info:
             logger.warning(f"OAuth token not found: {oauth_token[:16]}...")
             return False, None
-        
-        # Check if token has expired
-        if int(time.time()) > token_info['expires_at']:
+
+        if int(time.time()) > int(token_info['expires_at']):
             logger.warning(f"OAuth token expired for user: {token_info['username']}")
-            # Clean up expired token
-            del self.access_tokens[oauth_token]
+            _tokens_table().delete_item(Key={'oauth_token': oauth_token})
             return False, None
-        
-        # Validate the underlying Cognito access token
+
         try:
-            # Use the Cognito access token to get user info (this validates the token)
             response = self.cognito_client.get_user(
                 AccessToken=token_info['cognito_access_token']
             )
-            
-            # Token is valid, return user information
             user_info = {
                 'username': token_info['username'],
-                'user_attributes': {attr['Name']: attr['Value'] 
-                                  for attr in response.get('UserAttributes', [])},
+                'user_attributes': {attr['Name']: attr['Value']
+                                    for attr in response.get('UserAttributes', [])},
                 'cognito_access_token': token_info['cognito_access_token'],
                 'oauth_token': oauth_token
             }
-            
             logger.info(f"OAuth token validated for user: {token_info['username']}")
             return True, user_info
-            
+
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            logger.warning(f"Cognito token validation failed: {error_code}")
-            
-            # Clean up invalid token
-            del self.access_tokens[oauth_token]
+            logger.warning(f"Cognito token validation failed: {e.response['Error']['Code']}")
+            _tokens_table().delete_item(Key={'oauth_token': oauth_token})
             return False, None
-            
+
         except Exception as e:
             logger.error(f"Unexpected error validating OAuth token: {str(e)}", exc_info=True)
             return False, None
-    
+
     def refresh_oauth_token(self, oauth_token: str) -> Optional[str]:
-        """
-        Refresh OAuth access token using Cognito refresh token
-        
-        Args:
-            oauth_token: Current OAuth access token
-            
-        Returns:
-            New OAuth access token or None if refresh failed
-        """
-        token_info = self.access_tokens.get(oauth_token)
+        """Refresh OAuth access token using Cognito refresh token."""
+        response = _tokens_table().get_item(Key={'oauth_token': oauth_token})
+        token_info = response.get('Item')
         if not token_info:
             return None
-        
+
         try:
-            # Use Cognito refresh token to get new tokens
             response = self.cognito_client.admin_initiate_auth(
                 UserPoolId=self.user_pool_id,
                 ClientId=self.client_id,
                 AuthFlow='REFRESH_TOKEN_AUTH',
-                AuthParameters={
-                    'REFRESH_TOKEN': token_info['cognito_refresh_token']
-                }
+                AuthParameters={'REFRESH_TOKEN': token_info['cognito_refresh_token']}
             )
-            
             auth_result = response.get('AuthenticationResult', {})
             new_access_token = auth_result.get('AccessToken')
             new_id_token = auth_result.get('IdToken')
-            
+
             if not new_access_token or not new_id_token:
                 logger.error("Missing tokens in Cognito refresh response")
                 return None
-            
-            # Generate new OAuth token
+
             new_oauth_token = f"oauth_{uuid.uuid4().hex}"
-            
-            # Update token mapping
-            self.access_tokens[new_oauth_token] = {
+            new_item = {
+                'oauth_token': new_oauth_token,
                 'cognito_access_token': new_access_token,
                 'cognito_id_token': new_id_token,
-                'cognito_refresh_token': token_info['cognito_refresh_token'],  # Refresh token stays the same
+                'cognito_refresh_token': token_info['cognito_refresh_token'],
                 'username': token_info['username'],
-                'user_attributes': token_info['user_attributes'],
+                'user_attributes': token_info.get('user_attributes', {}),
                 'expires_at': int(time.time()) + auth_result.get('ExpiresIn', 3600),
                 'created_at': int(time.time())
             }
-            
-            # Clean up old token
-            del self.access_tokens[oauth_token]
-            
+            _tokens_table().put_item(Item=new_item)
+            _tokens_table().delete_item(Key={'oauth_token': oauth_token})
+
             logger.info(f"Refreshed OAuth token for user: {token_info['username']}")
             return new_oauth_token
-            
+
         except ClientError as e:
             logger.error(f"Failed to refresh Cognito token: {e.response['Error']['Code']}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error refreshing token: {str(e)}", exc_info=True)
             return None
-    
+
     def revoke_oauth_token(self, oauth_token: str) -> bool:
-        """
-        Revoke OAuth access token
-        
-        Args:
-            oauth_token: OAuth access token to revoke
-            
-        Returns:
-            True if successfully revoked, False otherwise
-        """
-        if oauth_token in self.access_tokens:
-            del self.access_tokens[oauth_token]
+        """Revoke OAuth access token by deleting it from DynamoDB."""
+        try:
+            _tokens_table().delete_item(Key={'oauth_token': oauth_token})
             logger.info(f"Revoked OAuth token: {oauth_token[:16]}...")
             return True
-        return False
-    
+        except Exception as e:
+            logger.error(f"Failed to revoke token: {e}")
+            return False
+
     def get_user_info_from_token(self, oauth_token: str) -> Optional[Dict[str, Any]]:
-        """
-        Get user information from OAuth token without full validation
-        Useful for extracting user context from valid tokens
-        
-        Args:
-            oauth_token: OAuth access token
-            
-        Returns:
-            User information dict or None
-        """
-        token_info = self.access_tokens.get(oauth_token)
+        """Get user information from OAuth token without full Cognito validation."""
+        response = _tokens_table().get_item(Key={'oauth_token': oauth_token})
+        token_info = response.get('Item')
         if not token_info:
             return None
-        
         return {
             'username': token_info['username'],
-            'user_attributes': token_info['user_attributes'],
-            'expires_at': token_info['expires_at']
+            'user_attributes': token_info.get('user_attributes', {}),
+            'expires_at': int(token_info['expires_at'])
         }
-    
+
     def cleanup_expired_tokens(self) -> int:
-        """
-        Clean up expired OAuth tokens from memory
-        Should be called periodically to prevent memory leaks
-        
-        Returns:
-            Number of tokens cleaned up
-        """
-        current_time = int(time.time())
-        expired_tokens = [
-            token for token, info in self.access_tokens.items()
-            if current_time > info['expires_at']
-        ]
-        
-        for token in expired_tokens:
-            del self.access_tokens[token]
-        
-        if expired_tokens:
-            logger.info(f"Cleaned up {len(expired_tokens)} expired OAuth tokens")
-        
-        return len(expired_tokens)
+        """No-op: DynamoDB TTL handles expiry automatically."""
+        return 0
 
 
 # Global instance for use across the Lambda function

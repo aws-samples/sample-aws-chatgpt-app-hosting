@@ -176,9 +176,15 @@ def handle_mcp_jsonrpc_with_oauth(event, context, headers):
             # Add user context to event for potential use by tools
             event['oauth_user_context'] = user_context
         else:
-            logger.warning("Invalid OAuth token provided")
-            # Continue processing - maintains backward compatibility
-            # In the future, you might want to return 401 for invalid tokens
+            logger.warning("Invalid OAuth token provided, returning 401")
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'WWW-Authenticate': 'Bearer error="invalid_token"'
+                },
+                'body': json.dumps({'error': 'invalid_token', 'error_description': 'The access token is invalid or expired'})
+            }
     else:
         logger.info("No OAuth token provided, processing without authentication")
     
