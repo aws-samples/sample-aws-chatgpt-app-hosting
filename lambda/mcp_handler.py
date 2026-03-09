@@ -118,9 +118,15 @@ def handle_mcp_request(event, context, headers):
         if user_context:
             logger.info(f"OAuth token validated for user: {user_context['username']}")
         else:
-            logger.warning("Invalid OAuth token provided")
-            # For now, we'll continue processing even with invalid tokens
-            # This maintains backward compatibility
+            logger.warning("Invalid OAuth token provided, returning 401")
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'WWW-Authenticate': 'Bearer error="invalid_token"'
+                },
+                'body': json.dumps({'error': 'invalid_token', 'error_description': 'The access token is invalid or expired'})
+            }
     else:
         logger.info("No OAuth token provided, processing without authentication")
     

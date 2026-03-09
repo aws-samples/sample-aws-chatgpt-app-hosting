@@ -9,16 +9,20 @@ import uuid
 import time
 from typing import Dict, Any, Optional
 from urllib.parse import urlencode, parse_qs, unquote_plus
+import boto3
+from boto3.dynamodb.conditions import Attr
 from cognito_auth import validate_credentials
 
 logger = logging.getLogger(__name__)
 
-# In-memory storage for authorization codes (simple implementation)
-# In production, this should use a persistent store like DynamoDB
-auth_codes: Dict[str, Dict[str, Any]] = {}
-
 # Authorization code expiration time (10 minutes)
 AUTH_CODE_EXPIRY_SECONDS = 600
+
+_dynamodb = boto3.resource('dynamodb')
+
+def _auth_codes_table():
+    table_name = os.environ.get('DYNAMODB_OAUTH_AUTH_CODES_TABLE', 'oauth-auth-codes')
+    return _dynamodb.Table(table_name)
 
 # OAuth server configuration template
 def get_oauth_config(base_url: str) -> Dict[str, Any]:
@@ -458,7 +462,7 @@ def handle_token_exchange(event: Dict[str, Any], context: Any) -> Dict[str, Any]
         access_token = generate_oauth_access_token(user_info)
         
         # Calculate token expiration (use Cognito token expiration)
-        expires_in = user_info['expires_at'] - int(time.time())
+        expires_in = int(user_info['expires_at']) - int(time.time())
         if expires_in <= 0:
             expires_in = 3600  # Default to 1 hour if calculation fails
         
@@ -674,40 +678,70 @@ def generate_authorization_html(client_id: str, redirect_uri: str, state: Option
 """
     return html
 
-def generate_authorization_code(username: str, client_id: str, redirect_uri: str, 
+def generate_authorization_code(username: str, client_id: str, redirect_uri: str,
                               state: Optional[str], scope: str, user_info: Dict[str, Any]) -> str:
-    """
-    Generate and store authorization code for OAuth flow
-    
-    Args:
-        username: Authenticated username
-        client_id: OAuth client ID
-        redirect_uri: Callback URI for the client
-        state: Optional state parameter from client
-        scope: Requested OAuth scopes
-        user_info: User information from Cognito authentication
-        
-    Returns:
-        Authorization code string
-    """
-    # Generate unique authorization code
+    """Generate and store authorization code in DynamoDB."""
     auth_code = f"auth_{uuid.uuid4().hex}"
-    
-    # Store authorization code with metadata
-    auth_codes[auth_code] = {
+    item = {
+        'code': auth_code,
         'username': username,
         'client_id': client_id,
         'redirect_uri': redirect_uri,
-        'state': state,
-        'scope': scope,  # Store the requested scope
+        'state': state or '',
+        'scope': scope,
         'user_info': user_info,
         'created_at': int(time.time()),
         'expires_at': int(time.time()) + AUTH_CODE_EXPIRY_SECONDS,
         'used': False
     }
-    
-    logger.info(f"Generated authorization code for user {username}, expires in {AUTH_CODE_EXPIRY_SECONDS} seconds")
+    _auth_codes_table().put_item(Item=item)
+    logger.info(f"Stored authorization code in DynamoDB for user {username}")
     return auth_code
+
+
+def get_authorization_code_info(auth_code: str) -> Optional[Dict[str, Any]]:
+    """Retrieve and validate authorization code from DynamoDB."""
+    if not auth_code:
+        return None
+
+    response = _auth_codes_table().get_item(Key={'code': auth_code})
+    code_info = response.get('Item')
+
+    if not code_info:
+        logger.warning(f"Authorization code not found: {auth_code[:16]}...")
+        return None
+
+    if int(time.time()) > code_info['expires_at']:
+        logger.warning(f"Authorization code expired: {auth_code[:16]}...")
+        _auth_codes_table().delete_item(Key={'code': auth_code})
+        return None
+
+    if code_info.get('used'):
+        logger.warning(f"Authorization code already used: {auth_code[:16]}...")
+        _auth_codes_table().delete_item(Key={'code': auth_code})
+        return None
+
+    return code_info
+
+
+def mark_authorization_code_used(auth_code: str) -> bool:
+    """Mark authorization code as used (single-use) in DynamoDB."""
+    try:
+        _auth_codes_table().update_item(
+            Key={'code': auth_code},
+            UpdateExpression='SET used = :t',
+            ExpressionAttributeValues={':t': True}
+        )
+        logger.info(f"Marked authorization code as used: {auth_code[:16]}...")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to mark auth code as used: {e}")
+        return False
+
+
+def cleanup_expired_auth_codes() -> int:
+    """No-op: DynamoDB TTL handles expiry automatically."""
+    return 0
 
 
 def redirect_with_code(redirect_uri: str, auth_code: str, state: Optional[str]) -> Dict[str, Any]:
@@ -777,81 +811,6 @@ def redirect_with_error(redirect_uri: str, error: str, error_description: str,
         },
         'body': f'<html><body>Authorization failed. Redirecting to <a href="{redirect_url}">{redirect_url}</a></body></html>'
     }
-
-
-def get_authorization_code_info(auth_code: str) -> Optional[Dict[str, Any]]:
-    """
-    Retrieve and validate authorization code information
-    
-    Args:
-        auth_code: Authorization code to look up
-        
-    Returns:
-        Authorization code info dict or None if invalid/expired
-    """
-    if not auth_code:
-        return None
-    
-    code_info = auth_codes.get(auth_code)
-    if not code_info:
-        logger.warning(f"Authorization code not found: {auth_code[:16]}...")
-        return None
-    
-    # Check if code has expired
-    if int(time.time()) > code_info['expires_at']:
-        logger.warning(f"Authorization code expired: {auth_code[:16]}...")
-        # Clean up expired code
-        del auth_codes[auth_code]
-        return None
-    
-    # Check if code has already been used
-    if code_info['used']:
-        logger.warning(f"Authorization code already used: {auth_code[:16]}...")
-        # Clean up used code
-        del auth_codes[auth_code]
-        return None
-    
-    return code_info
-
-
-def mark_authorization_code_used(auth_code: str) -> bool:
-    """
-    Mark authorization code as used (single-use only)
-    
-    Args:
-        auth_code: Authorization code to mark as used
-        
-    Returns:
-        True if successfully marked, False if code not found
-    """
-    if auth_code in auth_codes:
-        auth_codes[auth_code]['used'] = True
-        logger.info(f"Marked authorization code as used: {auth_code[:16]}...")
-        return True
-    return False
-
-
-def cleanup_expired_auth_codes() -> int:
-    """
-    Clean up expired authorization codes from memory
-    Should be called periodically to prevent memory leaks
-    
-    Returns:
-        Number of codes cleaned up
-    """
-    current_time = int(time.time())
-    expired_codes = [
-        code for code, info in auth_codes.items()
-        if current_time > info['expires_at'] or info['used']
-    ]
-    
-    for code in expired_codes:
-        del auth_codes[code]
-    
-    if expired_codes:
-        logger.info(f"Cleaned up {len(expired_codes)} expired/used authorization codes")
-    
-    return len(expired_codes)
 
 
 def validate_oauth_token(authorization_header: Optional[str]) -> Optional[Dict[str, Any]]:

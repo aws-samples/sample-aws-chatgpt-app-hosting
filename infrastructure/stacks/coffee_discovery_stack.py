@@ -36,10 +36,18 @@ class CoffeeDiscoveryStack(Stack):
         
         # Create DynamoDB table for OAuth client registrations
         oauth_clients_table = self._create_oauth_clients_table()
-        
-        # Grant Lambda permissions to both tables
+
+        # Create DynamoDB table for OAuth authorization codes
+        oauth_auth_codes_table = self._create_oauth_auth_codes_table()
+
+        # Create DynamoDB table for OAuth access tokens
+        oauth_tokens_table = self._create_oauth_tokens_table()
+
+        # Grant Lambda permissions to all tables
         cart_table.grant_read_write_data(lambda_role)
         oauth_clients_table.grant_read_write_data(lambda_role)
+        oauth_auth_codes_table.grant_read_write_data(lambda_role)
+        oauth_tokens_table.grant_read_write_data(lambda_role)
         
         # Add S3 read permissions to Lambda role
         self._add_s3_permissions_to_lambda(lambda_role)
@@ -53,6 +61,8 @@ class CoffeeDiscoveryStack(Stack):
             opensearch_collection,
             cart_table,
             oauth_clients_table,
+            oauth_auth_codes_table,
+            oauth_tokens_table,
             user_pool,
             user_pool_client,
             region
@@ -143,6 +153,36 @@ class CoffeeDiscoveryStack(Stack):
             time_to_live_attribute="expires_at"
         )
         return oauth_clients_table
+
+    def _create_oauth_auth_codes_table(self) -> dynamodb.Table:
+        """Create DynamoDB table for OAuth authorization codes (short-lived, single-use)."""
+        return dynamodb.Table(
+            self,
+            "OAuthAuthCodesTable",
+            table_name="oauth-auth-codes",
+            partition_key=dynamodb.Attribute(
+                name="code",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+            time_to_live_attribute="expires_at"
+        )
+
+    def _create_oauth_tokens_table(self) -> dynamodb.Table:
+        """Create DynamoDB table for OAuth access tokens."""
+        return dynamodb.Table(
+            self,
+            "OAuthTokensTable",
+            table_name="oauth-tokens",
+            partition_key=dynamodb.Attribute(
+                name="oauth_token",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+            time_to_live_attribute="expires_at"
+        )
 
     def _create_lambda_execution_role(self) -> iam.Role:
         """Create execution role for Lambda function."""
@@ -324,6 +364,8 @@ class CoffeeDiscoveryStack(Stack):
         opensearch_collection: opensearch_serverless.CfnCollection,
         cart_table: dynamodb.Table,
         oauth_clients_table: dynamodb.Table,
+        oauth_auth_codes_table: dynamodb.Table,
+        oauth_tokens_table: dynamodb.Table,
         user_pool: cognito.UserPool,
         user_pool_client: cognito.UserPoolClient,
         region: str,
@@ -383,6 +425,8 @@ class CoffeeDiscoveryStack(Stack):
                 "BEDROCK_MODEL_ID": "amazon.titan-embed-text-v1",
                 "DYNAMODB_CART_TABLE": cart_table.table_name,
                 "DYNAMODB_OAUTH_CLIENTS_TABLE": oauth_clients_table.table_name,
+                "DYNAMODB_OAUTH_AUTH_CODES_TABLE": oauth_auth_codes_table.table_name,
+                "DYNAMODB_OAUTH_TOKENS_TABLE": oauth_tokens_table.table_name,
                 "CLOUDFRONT_DOMAIN": f"https://{cloudfront_domain}",
                 # OAuth configuration
                 "COGNITO_USER_POOL_ID": user_pool.user_pool_id,

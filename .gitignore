@@ -67,3 +67,6 @@ lambda/*.dist-info/
 !lambda/integrated_handler.py
 !lambda/requirements.txt
 !lambda/mcp_server/
+
+# Deployment outputs (may contain sensitive resource IDs)
+deployment-outputs.txt
