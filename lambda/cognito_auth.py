@@ -239,7 +239,7 @@ class CognitoAuthenticator:
         return {
             'username': token_info['username'],
             'user_attributes': token_info.get('user_attributes', {}),
-            'expires_at': int(token_info['expires_at'])
+            'expires_at': token_info['expires_at']
         }
 
     def cleanup_expired_tokens(self) -> int:

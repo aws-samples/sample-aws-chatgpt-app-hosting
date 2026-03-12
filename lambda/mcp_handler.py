@@ -128,7 +128,15 @@ def handle_mcp_request(event, context, headers):
                 'body': json.dumps({'error': 'invalid_token', 'error_description': 'The access token is invalid or expired'})
             }
     else:
-        logger.info("No OAuth token provided, processing without authentication")
+        logger.warning("No OAuth token provided, returning 401")
+        return {
+            'statusCode': 401,
+            'headers': {
+                'Content-Type': 'application/json',
+                'WWW-Authenticate': 'Bearer realm="MCP API"'
+            },
+            'body': json.dumps({'error': 'unauthorized', 'error_description': 'Authentication is required to access this endpoint'})
+        }
     
     # Handle GET /mcp (discovery endpoint)
     if http_method == 'GET':
