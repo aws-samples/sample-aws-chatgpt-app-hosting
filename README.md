@@ -742,9 +742,6 @@ This will delete:
 - Inventory management
 - Production-grade authentication
 
-## License
-
-This is a demonstration application for the ChatGPT Apps SDK.
 
 ## Acknowledgments
 
