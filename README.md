@@ -2,6 +2,8 @@
 
 A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on Amazon Bedrock AgentCore Runtime, with semantic search powered by OpenSearch Serverless.
 
+**⚠️ Security Notice:** Not designed for multi-tenant production use. OpenSearch Serverless uses public network access for ease of deployment. For production, configure VPC-only (private) access and implement proper tenant isolation.
+
 ## Overview
 
 This application enables users to:
@@ -46,6 +48,14 @@ Before deploying this application, ensure you have the following installed and c
    - Install: https://docs.docker.com/get-docker/
    - Verify: `docker --version`
    - Ensure Docker daemon is running
+
+### ChatGPT Account Requirements
+
+**ChatGPT Developer Mode** is required to use this MCP application:
+- **Eligibility**: Pro, Plus, Business, Enterprise, or Education account
+- **Access**: Enable at https://chat.openai.com → Settings → Developer → Developer mode
+- **Documentation**: https://developers.openai.com/api/docs/guides/developer-mode/
+
 
 ### Python Packages
 
