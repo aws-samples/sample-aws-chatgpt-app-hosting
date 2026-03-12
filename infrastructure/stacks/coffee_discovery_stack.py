@@ -336,7 +336,6 @@ class CoffeeDiscoveryStack(Stack):
                     ],
                     "Principal": [
                         lambda_role.role_arn,
-                        f"arn:aws:iam::{self.account}:root",
                         f"arn:aws:iam::{self.account}:role/Admin",
                         f"arn:aws:sts::{self.account}:assumed-role/Admin/*"
                     ]

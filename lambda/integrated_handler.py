@@ -153,7 +153,7 @@ def handle_mcp_request_with_oauth(event, context):
 
 def handle_mcp_jsonrpc_with_oauth(event, context, headers):
     """
-    Handle MCP JSON-RPC requests with optional OAuth token validation
+    Handle MCP JSON-RPC requests with required OAuth token validation
     
     Args:
         event: API Gateway event
@@ -186,7 +186,15 @@ def handle_mcp_jsonrpc_with_oauth(event, context, headers):
                 'body': json.dumps({'error': 'invalid_token', 'error_description': 'The access token is invalid or expired'})
             }
     else:
-        logger.info("No OAuth token provided, processing without authentication")
+        logger.warning("No OAuth token provided, returning 401")
+        return {
+            'statusCode': 401,
+            'headers': {
+                'Content-Type': 'application/json',
+                'WWW-Authenticate': 'Bearer realm="MCP API"'
+            },
+            'body': json.dumps({'error': 'unauthorized', 'error_description': 'Authentication is required to access this endpoint'})
+        }
     
     # Process MCP request using original handler
     # The original handler will process the JSON-RPC request normally
