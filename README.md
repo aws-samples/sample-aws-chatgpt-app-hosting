@@ -1,6 +1,6 @@
 # ChatGPT App AWS
 
-A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on Amazon Bedrock AgentCore Runtime, with semantic search powered by OpenSearch Serverless.
+A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on AWS Lambda with API Gateway, with semantic search powered by OpenSearch Serverless.
 
 **⚠️ Security Notice:** Not designed for multi-tenant production use. OpenSearch Serverless uses public network access for ease of deployment. For production, configure VPC-only (private) access and implement proper tenant isolation.
 
@@ -18,7 +18,7 @@ This application enables users to:
 - **Hosting**: AWS Lambda (ARM64) with API Gateway
 - **Web Component**: Interactive UI rendered in ChatGPT iframe
 - **Product Catalog**: OpenSearch Serverless with vector embeddings
-- **Authentication**: Cognito OAuth 2.0 (optional - currently disabled for testing)
+- **Authentication**: Cognito OAuth 2.0
 - **Infrastructure**: AWS CDK for automated deployment
 
 ## Prerequisites
@@ -61,7 +61,8 @@ Before deploying this application, ensure you have the following installed and c
 
 The required Python packages are specified in:
 - `infrastructure/requirements.txt` - CDK dependencies
-- `mcp_server/requirements.txt` - MCP server dependencies
+- `lambda/requirements.txt` - Lambda runtime dependencies
+- `lambda/mcp_server/requirements.txt` - MCP server dependencies (includes test/dev packages)
 - `scripts/` - Script dependencies (boto3, opensearch-py)
 
 These will be installed during the deployment process.
@@ -72,9 +73,8 @@ Your AWS credentials must have permissions for:
 - CloudFormation (stack creation/updates)
 - Cognito (user pool management)
 - OpenSearch Serverless (collection creation)
-- Bedrock (AgentCore Runtime, embeddings API)
+- Bedrock (embeddings API)
 - IAM (role creation)
-- ECR (image push)
 - CloudWatch (logs and metrics)
 
 ## Deployment
@@ -200,14 +200,14 @@ This creates the `coffee-products` index with:
 
 ### Step 7: Load Product Catalog
 
-Load products into OpenSearch with embeddings and CloudFront URLs:
+Load products into OpenSearch with embeddings:
 
 ```bash
 python3 scripts/simple_load.py
 ```
 
 This script will:
-- Read products from `data/products.json` (24 coffee products with CloudFront URLs)
+- Read products from `data/products.json` (24 coffee products with image URLs)
 - Generate vector embeddings using Amazon Bedrock Titan
 - Index products in OpenSearch Serverless with embeddings
 
@@ -244,31 +244,8 @@ Indexing 24 products...
 
 ### Step 8: Create Cognito Test User
 
-Create a test user for authentication:
+Create a test user for authentication using the AWS CLI:
 
-#### Option A: Automated Script (Recommended)
-
-Use the provided shell script:
-
-```bash
-export REGION=us-east-1
-export USER_POOL_ID=<CognitoUserPoolId from CDK outputs>
-export CLIENT_ID=<CognitoClientId from CDK outputs>
-export USERNAME=testuser
-export PASSWORD=<your-password>
-
-source scripts/create_test_user.sh
-```
-
-The script will:
-1. Create the user in Cognito
-2. Set a permanent password
-3. Generate an access token
-4. Output the bearer token for testing
-
-#### Option B: Manual Creation
-
-Create user:
 ```bash
 aws cognito-idp admin-create-user \
   --user-pool-id <CognitoUserPoolId> \
@@ -277,7 +254,7 @@ aws cognito-idp admin-create-user \
   --message-action SUPPRESS
 ```
 
-Set permanent password:
+Set a permanent password:
 ```bash
 aws cognito-idp admin-set-user-password \
   --user-pool-id <CognitoUserPoolId> \
@@ -286,7 +263,7 @@ aws cognito-idp admin-set-user-password \
   --permanent
 ```
 
-Generate access token:
+Generate an access token:
 ```bash
 aws cognito-idp initiate-auth \
   --auth-flow USER_PASSWORD_AUTH \
@@ -406,9 +383,9 @@ Try these prompts in ChatGPT to test the integration:
 - System gracefully handles missing data
 - Authentication errors prompt re-login
 
-### Demo/Development Authentication Model
+### OAuth 2.0 Implementation
 
-**Important:** This deployment includes a complete OAuth 2.0 implementation:
+This deployment includes a complete OAuth 2.0 implementation:
 
 - **OAuth 2.0 Flow**: Full authorization code flow with PKCE support
 - **Cognito Integration**: AWS Cognito provides user authentication and JWT tokens
@@ -482,7 +459,7 @@ Solution: Start Docker Desktop or Docker daemon
 ```
 Solution: Verify your AWS credentials have the required permissions
   Check: aws sts get-caller-identity
-  Required: CloudFormation, Cognito, OpenSearch, Bedrock, IAM, ECR, CloudWatch
+  Required: CloudFormation, Cognito, OpenSearch, Bedrock, IAM, CloudWatch
 ```
 
 **Problem:** CDK bootstrap fails
@@ -509,7 +486,6 @@ Solution: OpenSearch Serverless permissions are eventually consistent
   Note: The simple_load.py script:
   - Creates the index with proper knn_vector mapping
   - Generates embeddings for semantic search
-  - Generates AI product images
   - Uses a minimal approach that handles permission timing issues better
   - Is the recommended approach if load_catalog.py encounters issues
 ```
@@ -527,19 +503,15 @@ Solution: Verify Bedrock access in your region
 Solution: Check Nova Canvas availability and quotas
   Verify Nova Canvas model is available: aws bedrock list-foundation-models --region us-east-1 | grep nova-canvas
   Check for throttling errors in the logs
-  Use --skip-images flag to bypass image generation if needed
   Image generation takes ~3-5 seconds per product (normal)
-  Consider running with --image-width 512 --image-height 512 for faster generation
 ```
 
 **Problem:** Images not displaying in web component
 ```
-Solution: Verify image data is present
-  Check that products have image_base64 field in OpenSearch
-  Verify web component is using getImageSource() function
-  Check browser console for errors
-  Ensure data URIs are properly formatted (data:image/png;base64,...)
-  If issues persist, use --skip-images and rely on image_url fallback
+Solution: Verify image URLs in products.json
+  Check URLs are publicly accessible
+  Ensure HTTPS URLs (not HTTP)
+  Test URLs in browser
 ```
 
 **Problem:** Script reports "File not found: data/products.json"
@@ -701,18 +673,26 @@ This will delete:
 │   ├── app.py                     # CDK app entry point
 │   ├── requirements.txt           # CDK dependencies
 │   └── stacks/
-│       └── coffee_discovery_stack.py  # Main CDK stack
-├── mcp_server/
-│   ├── server.py                  # FastMCP server
-│   ├── tools.py                   # MCP tool implementations
-│   ├── opensearch_client.py       # OpenSearch integration
-│   ├── embeddings.py              # Bedrock embeddings
-│   ├── web_component.html         # UI component
-│   ├── Dockerfile                 # Container definition
-│   └── requirements.txt           # Server dependencies
+│       ├── coffee_discovery_stack.py  # Main CDK stack
+│       └── image_hosting_stack.py     # S3/CloudFront stack
+├── lambda/
+│   ├── integrated_handler.py      # Lambda entry point
+│   ├── mcp_handler.py             # MCP request handling
+│   ├── oauth_handler.py           # OAuth 2.0 endpoints
+│   ├── cognito_auth.py            # Cognito JWT validation
+│   ├── requirements.txt           # Lambda dependencies
+│   └── mcp_server/
+│       ├── server.py              # FastMCP server
+│       ├── tools.py               # MCP tool implementations
+│       ├── opensearch_client.py   # OpenSearch integration
+│       ├── embeddings.py          # Bedrock embeddings
+│       ├── cart_manager.py        # Shopping cart logic
+│       ├── cart_tools.py          # Cart MCP tools
+│       └── web_component.html     # UI component
 ├── scripts/
-│   ├── load_catalog.py            # Data loading script
-│   └── create_test_user.sh        # User creation script
+│   ├── create_index.py            # Create OpenSearch index
+│   ├── simple_load.py             # Load product catalog
+│   └── generate_all_images.py     # Generate product images
 └── README.md                      # This file
 ```
 
@@ -730,13 +710,11 @@ This will delete:
 - Demo/development authentication model (not production-ready)
 - Manual test user creation required
 - No user preference persistence
-- No shopping cart or checkout functionality
 - Single-region deployment
 
 ### Future Enhancements
 
 - User preference persistence (DynamoDB)
-- Shopping cart integration
 - Multi-region deployment
 - Advanced filtering and recommendations
 - Inventory management
@@ -748,5 +726,5 @@ This will delete:
 Built with:
 - [ChatGPT Apps SDK](https://platform.openai.com/docs/guides/apps)
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
-- [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/)
+- [Amazon Bedrock](https://aws.amazon.com/bedrock/)
 - [OpenSearch](https://opensearch.org/)
