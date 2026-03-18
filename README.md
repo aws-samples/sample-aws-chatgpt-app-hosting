@@ -1,8 +1,6 @@
 # ChatGPT App AWS
 
-A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on Amazon Bedrock AgentCore Runtime, with semantic search powered by OpenSearch Serverless.
-
-**⚠️ Security Notice:** Not designed for multi-tenant production use. OpenSearch Serverless uses public network access for ease of deployment. For production, configure VPC-only (private) access and implement proper tenant isolation.
+A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on AWS Lambda with API Gateway, with semantic search powered by OpenSearch Serverless.
 
 ## Overview
 
@@ -18,7 +16,7 @@ This application enables users to:
 - **Hosting**: AWS Lambda (ARM64) with API Gateway
 - **Web Component**: Interactive UI rendered in ChatGPT iframe
 - **Product Catalog**: OpenSearch Serverless with vector embeddings
-- **Authentication**: Cognito OAuth 2.0 (optional - currently disabled for testing)
+- **Authentication**: Cognito OAuth 2.0 (required - tokens stored in DynamoDB)
 - **Infrastructure**: AWS CDK for automated deployment
 
 ## Prerequisites
@@ -49,14 +47,6 @@ Before deploying this application, ensure you have the following installed and c
    - Verify: `docker --version`
    - Ensure Docker daemon is running
 
-### ChatGPT Account Requirements
-
-**ChatGPT Developer Mode** is required to use this MCP application:
-- **Eligibility**: Pro, Plus, Business, Enterprise, or Education account
-- **Access**: Enable at https://chat.openai.com → Settings → Developer → Developer mode
-- **Documentation**: https://developers.openai.com/api/docs/guides/developer-mode/
-
-
 ### Python Packages
 
 The required Python packages are specified in:
@@ -72,7 +62,7 @@ Your AWS credentials must have permissions for:
 - CloudFormation (stack creation/updates)
 - Cognito (user pool management)
 - OpenSearch Serverless (collection creation)
-- Bedrock (AgentCore Runtime, embeddings API)
+- Bedrock (embeddings API)
 - IAM (role creation)
 - ECR (image push)
 - CloudWatch (logs and metrics)
@@ -245,28 +235,6 @@ Indexing 24 products...
 ### Step 8: Create Cognito Test User
 
 Create a test user for authentication:
-
-#### Option A: Automated Script (Recommended)
-
-Use the provided shell script:
-
-```bash
-export REGION=us-east-1
-export USER_POOL_ID=<CognitoUserPoolId from CDK outputs>
-export CLIENT_ID=<CognitoClientId from CDK outputs>
-export USERNAME=testuser
-export PASSWORD=<your-password>
-
-source scripts/create_test_user.sh
-```
-
-The script will:
-1. Create the user in Cognito
-2. Set a permanent password
-3. Generate an access token
-4. Output the bearer token for testing
-
-#### Option B: Manual Creation
 
 Create user:
 ```bash
@@ -696,24 +664,41 @@ This will delete:
 ```
 .
 ├── data/
-│   └── products.json              # Coffee product catalog
+│   └── products.json                   # Coffee product catalog
 ├── infrastructure/
-│   ├── app.py                     # CDK app entry point
-│   ├── requirements.txt           # CDK dependencies
+│   ├── app.py                          # CDK app entry point
+│   ├── requirements.txt                # CDK dependencies
 │   └── stacks/
-│       └── coffee_discovery_stack.py  # Main CDK stack
+│       ├── coffee_discovery_stack.py   # Main CDK stack
+│       └── image_hosting_stack.py      # S3 + CloudFront for images
+├── lambda/
+│   ├── integrated_handler.py           # Lambda entry point, routes OAuth vs MCP
+│   ├── oauth_handler.py                # OAuth 2.0 flow implementation
+│   ├── cognito_auth.py                 # Cognito credential validation + token management
+│   ├── mcp_handler.py                  # MCP JSON-RPC handler
+│   └── requirements.txt
 ├── mcp_server/
-│   ├── server.py                  # FastMCP server
-│   ├── tools.py                   # MCP tool implementations
-│   ├── opensearch_client.py       # OpenSearch integration
-│   ├── embeddings.py              # Bedrock embeddings
-│   ├── web_component.html         # UI component
-│   ├── Dockerfile                 # Container definition
-│   └── requirements.txt           # Server dependencies
+│   ├── server.py                       # FastMCP server
+│   ├── tools.py                        # MCP tool implementations
+│   ├── cart_tools.py                   # Cart MCP tool wrappers
+│   ├── cart_manager.py                 # Cart business logic
+│   ├── cart_repository.py              # DynamoDB cart persistence
+│   ├── opensearch_client.py            # OpenSearch integration
+│   ├── embeddings.py                   # Bedrock embeddings
+│   ├── preference_parser.py            # NLP preference parsing
+│   ├── web_component.html              # Product discovery UI component
+│   ├── cart_component.html             # Shopping cart UI component
+│   ├── Dockerfile                      # Container definition
+│   └── requirements.txt
 ├── scripts/
-│   ├── load_catalog.py            # Data loading script
-│   └── create_test_user.sh        # User creation script
-└── README.md                      # This file
+│   ├── generate_all_images.py          # Generate + upload product images
+│   ├── image_generator.py              # Image generation helper
+│   ├── create_index.py                 # Create OpenSearch index
+│   ├── simple_load.py                  # Load catalog with embeddings
+│   ├── load_catalog.py                 # Data loading script
+│   ├── upload_to_s3.py                 # Upload images to S3
+│   └── check_opensearch_images.sh      # Verify images in OpenSearch
+└── README.md                           # This file
 ```
 
 ## Support and Contributing
@@ -730,18 +715,17 @@ This will delete:
 - Demo/development authentication model (not production-ready)
 - Manual test user creation required
 - No user preference persistence
-- No shopping cart or checkout functionality
+- No checkout or payment functionality
 - Single-region deployment
 
 ### Future Enhancements
 
 - User preference persistence (DynamoDB)
-- Shopping cart integration
+- Checkout and payment integration
 - Multi-region deployment
 - Advanced filtering and recommendations
 - Inventory management
 - Production-grade authentication
-
 
 ## Acknowledgments
 
