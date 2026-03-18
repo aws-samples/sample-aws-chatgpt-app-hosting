@@ -2,6 +2,8 @@
 
 A ChatGPT App that helps users discover coffee beans through conversational interaction. Built with the ChatGPT Apps SDK using Model Context Protocol (MCP), hosted on AWS Lambda with API Gateway, with semantic search powered by OpenSearch Serverless.
 
+**⚠️ Security Notice:** Not designed for multi-tenant production use. OpenSearch Serverless uses public network access for ease of deployment. For production, configure VPC-only (private) access and implement proper tenant isolation.
+
 ## Overview
 
 This application enables users to:
