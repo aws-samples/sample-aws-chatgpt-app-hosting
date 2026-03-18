@@ -47,6 +47,13 @@ Before deploying this application, ensure you have the following installed and c
    - Verify: `docker --version`
    - Ensure Docker daemon is running
 
+### ChatGPT Account Requirements
+
+**ChatGPT Developer Mode** is required to use this MCP application:
+- **Eligibility**: Pro, Plus, Business, Enterprise, or Education account
+- **Access**: Enable at https://chat.openai.com → Settings → Developer → Developer mode
+- **Documentation**: https://developers.openai.com/api/docs/guides/developer-mode/
+
 ### Python Packages
 
 The required Python packages are specified in:
@@ -715,13 +722,13 @@ This will delete:
 - Demo/development authentication model (not production-ready)
 - Manual test user creation required
 - No user preference persistence
-- No checkout or payment functionality
+- No checkout functionality
 - Single-region deployment
 
 ### Future Enhancements
 
 - User preference persistence (DynamoDB)
-- Checkout and payment integration
+- Checkout integration
 - Multi-region deployment
 - Advanced filtering and recommendations
 - Inventory management
