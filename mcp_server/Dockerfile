@@ -15,9 +15,5 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run as non-root user
-RUN useradd -m nonroot
-USER nonroot
-
 # Run server
 CMD ["python", "server.py"]

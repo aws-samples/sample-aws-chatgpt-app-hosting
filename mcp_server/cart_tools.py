@@ -4,6 +4,7 @@ Cart Tools - MCP tool implementations for shopping cart operations
 import logging
 import os
 from typing import Dict, Optional
+from mcp.types import CallToolResult, TextContent
 from cart_manager import CartManager
 from cart_repository import CartRepository
 from opensearch_client import OpenSearchClient
@@ -176,62 +177,31 @@ def clear_cart_tool(user_id: Optional[str] = None) -> Dict:
         return format_error_response("Unable to clear cart. Please try again.")
 
 
-def format_cart_response(cart_data: Dict) -> Dict:
-    """
-    Format cart data for MCP response.
-    
-    Args:
-        cart_data: Cart data from manager
-    
-    Returns:
-        Formatted MCP response with content and structuredContent
-    """
+def format_cart_response(cart_data: Dict) -> CallToolResult:
+    """Format cart data as CallToolResult with structuredContent for widget rendering."""
     message = cart_data.get('message', '')
     is_error = cart_data.get('error', False)
-    
-    # Build text content
-    content = [
-        {
-            'type': 'text',
-            'text': message
-        }
-    ]
-    
-    # Build structured content for widget
-    structured_content = {
-        'cart': {
-            'items': cart_data.get('items', []),
-            'total_items': cart_data.get('total_items', 0),
-            'total_price': cart_data.get('total_price', 0.0),
-            'message': message,
-            'error': is_error
-        }
-    }
-    
-    return {
-        'content': content,
-        'structuredContent': structured_content
-    }
 
-
-def format_error_response(message: str) -> Dict:
-    """
-    Format error response for MCP.
-    
-    Args:
-        message: Error message
-    
-    Returns:
-        Formatted MCP error response
-    """
-    return {
-        'content': [
-            {
-                'type': 'text',
-                'text': message
+    return CallToolResult(
+        content=[TextContent(type="text", text=message)],
+        structuredContent={
+            'cart': {
+                'items': cart_data.get('items', []),
+                'total_items': cart_data.get('total_items', 0),
+                'total_price': cart_data.get('total_price', 0.0),
+                'message': message,
+                'error': is_error
             }
-        ],
-        'structuredContent': {
+        },
+        isError=is_error
+    )
+
+
+def format_error_response(message: str) -> CallToolResult:
+    """Format error as CallToolResult."""
+    return CallToolResult(
+        content=[TextContent(type="text", text=message)],
+        structuredContent={
             'cart': {
                 'items': [],
                 'total_items': 0,
@@ -239,5 +209,6 @@ def format_error_response(message: str) -> Dict:
                 'message': message,
                 'error': True
             }
-        }
-    }
+        },
+        isError=True
+    )

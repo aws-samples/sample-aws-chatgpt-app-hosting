@@ -1,5 +1,5 @@
 # Stack modules
-from .coffee_discovery_stack import CoffeeDiscoveryStack
 from .image_hosting_stack import ImageHostingStack
+from .agentcore_stack import AgentCoreStack
 
-__all__ = ["CoffeeDiscoveryStack", "ImageHostingStack"]
+__all__ = ["ImageHostingStack", "AgentCoreStack"]
