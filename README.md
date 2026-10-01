@@ -32,6 +32,8 @@ Product images: S3 ──▶ CloudFront (ImageHostingStack)
 - **DynamoDB** persists cart state across the conversation.
 - **S3 + CloudFront** serve the product images referenced by the widgets.
 
+An editable version of this diagram is in [`architecture.drawio`](architecture.drawio) (open with [draw.io](https://app.diagrams.net/) or the VS Code Draw.io extension).
+
 ## Prerequisites
 
 - AWS CLI with credentials (`aws sts get-caller-identity` works)
