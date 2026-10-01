@@ -11,6 +11,41 @@ import boto3
 
 logger = logging.getLogger(__name__)
 
+def normalize_filters(filters: Optional[Dict]) -> Optional[Dict]:
+    """Normalize incoming filter values so ChatGPT-supplied capitalized values
+    (e.g. "Light", "Ethiopia", ["Fruity"]) match the lowercase keyword values
+    stored in OpenSearch. Returns a new dict; leaves price_range untouched.
+    """
+    if not filters:
+        return filters
+    normalized = dict(filters)
+    if "roast_level" in normalized and isinstance(normalized["roast_level"], str):
+        normalized["roast_level"] = normalized["roast_level"].lower().strip()
+    # Origin keyword values are stored Title Case in the catalog (e.g.
+    # "Ethiopia"), so Title-case the filter to match what ChatGPT sends
+    # ("ethiopia"/"ETHIOPIA"/"Ethiopia") -> "Ethiopia".
+    if "origin" in normalized and isinstance(normalized["origin"], str):
+        normalized["origin"] = normalized["origin"].strip().title()
+    if "flavor_profile" in normalized:
+        fp = normalized["flavor_profile"]
+        if isinstance(fp, list):
+            normalized["flavor_profile"] = [
+                f.lower().strip() if isinstance(f, str) else f for f in fp
+            ]
+        elif isinstance(fp, str):
+            normalized["flavor_profile"] = fp.lower().strip()
+    return normalized
+
+def get_opensearch_endpoint_from_ssm() -> Optional[str]:
+    """Fetch OpenSearch endpoint from SSM Parameter Store"""
+    try:
+        ssm = boto3.client('ssm', region_name=os.getenv("AWS_REGION", "us-east-1"))
+        response = ssm.get_parameter(Name='/coffee/opensearch/endpoint')
+        return response['Parameter']['Value']
+    except Exception as e:
+        logger.warning(f"Could not fetch OpenSearch endpoint from SSM: {e}")
+        return None
+
 class OpenSearchClient:
     """Client for interacting with OpenSearch Serverless"""
     
@@ -19,11 +54,17 @@ class OpenSearchClient:
         Initialize OpenSearch client with AWS SigV4 authentication
         
         Args:
-            endpoint: OpenSearch endpoint URL (defaults to OPENSEARCH_ENDPOINT env var)
+            endpoint: OpenSearch endpoint URL (defaults to OPENSEARCH_ENDPOINT env var, then SSM)
             region: AWS region (defaults to AWS_REGION env var)
         """
+        self.region = region or os.getenv("AWS_REGION", "us-east-1")
+        
+        # Try to get endpoint from: 1) parameter, 2) env var, 3) SSM
         self.endpoint = endpoint or os.getenv("OPENSEARCH_ENDPOINT")
-        self.region = region or os.getenv("AWS_REGION", "us-west-2")
+        if not self.endpoint:
+            logger.info("OPENSEARCH_ENDPOINT not set, trying SSM...")
+            self.endpoint = get_opensearch_endpoint_from_ssm()
+        
         self.index_name = "coffee-products"
         
         if not self.endpoint:
@@ -90,6 +131,7 @@ class OpenSearchClient:
             
             # Add filters if provided
             if filters:
+                filters = normalize_filters(filters)
                 filter_clauses = []
                 
                 if "origin" in filters:
@@ -156,6 +198,7 @@ class OpenSearchClient:
             List of product documents
         """
         try:
+            filters = normalize_filters(filters)
             filter_clauses = []
             
             if "origin" in filters:

@@ -1,34 +1,33 @@
 #!/usr/bin/env python3
 import os
 import aws_cdk as cdk
-from stacks.coffee_discovery_stack import CoffeeDiscoveryStack
 from stacks.image_hosting_stack import ImageHostingStack
+from stacks.agentcore_stack import AgentCoreStack
 
 app = cdk.App()
+
+env = cdk.Environment(
+    account=os.getenv('CDK_DEFAULT_ACCOUNT'),
+    region=os.getenv('CDK_DEFAULT_REGION', 'us-east-1')
+)
 
 # Create image hosting stack (S3 + CloudFront)
 image_hosting_stack = ImageHostingStack(
     app,
     "ImageHostingStack",
-    env=cdk.Environment(
-        account=os.getenv('CDK_DEFAULT_ACCOUNT'),
-        region=os.getenv('CDK_DEFAULT_REGION', 'us-east-1')
-    ),
+    env=env,
     description="S3 and CloudFront infrastructure for product images"
 )
 
-# Create main application stack
-coffee_stack = CoffeeDiscoveryStack(
+# Create the AgentCore stack (Gateway + Runtime + OpenSearch + Cart + Cognito M2M)
+agentcore_stack = AgentCoreStack(
     app,
-    "ChatGPTAppAWSStack",
-    env=cdk.Environment(
-        account=os.getenv('CDK_DEFAULT_ACCOUNT'),
-        region=os.getenv('CDK_DEFAULT_REGION', 'us-east-1')
-    ),
-    description="ChatGPT App AWS - MCP Server with AgentCore Runtime"
+    "AgentCoreStack",
+    env=env,
+    description="ChatGPT Coffee App - AgentCore Gateway + Runtime (Part 2)"
 )
 
-# Add dependency so coffee stack can reference image hosting resources
-coffee_stack.add_dependency(image_hosting_stack)
+# AgentCore stack imports the CloudFront domain from the image hosting stack
+agentcore_stack.add_dependency(image_hosting_stack)
 
 app.synth()

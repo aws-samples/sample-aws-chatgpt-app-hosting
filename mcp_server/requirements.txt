@@ -1,7 +1,22 @@
-mcp>=1.0.0
-fastmcp>=0.2.0
+# Pinned to the versions the working AgentCore runtime used, so the widget
+# metadata (openai/outputTemplate, text/html+skybridge) serializes identically
+# and ChatGPT renders the component. Unpinned ranges can pull a newer mcp that
+# changes widget serialization.
+mcp==1.28.1
+fastmcp==3.4.4
 opensearch-py>=2.4.0
 boto3>=1.34.0
 requests-aws4auth>=1.2.3
 pytest>=7.4.0
 hypothesis>=6.92.0
+uvicorn>=0.27.0
+starlette>=0.36.0
+
+# Security floors for transitive deps (ProtoShield CVE scan, 2026-10-01):
+# anyio   CVE-2026-63374  (TLS certificate spoofing)
+# urllib3 CVE-2025-66418/66471, CVE-2026-21441/44431/97687/97689
+# idna    CVE-2026-45409
+anyio>=4.14.2
+urllib3>=2.8.0
+idna>=3.15
+requests>=2.32.0

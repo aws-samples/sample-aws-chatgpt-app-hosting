@@ -48,6 +48,15 @@ cdk.out/
 .DS_Store
 Thumbs.db
 
+# AgentCore build artifacts
+.bedrock_agentcore/
+
+# Security scan results
+ash-results/
+
+# Session-specific
+claude_changes/
+
 # Logs
 *.log
 
@@ -56,17 +65,5 @@ cognito_tokens*.txt
 *_tokens.txt
 credentials.json
 
-# Lambda dependencies (bundled by CDK, not committed)
-lambda/*/
-lambda/*.py
-lambda/*.so
-lambda/*.dist-info/
-!lambda/mcp_handler.py
-!lambda/oauth_handler.py
-!lambda/cognito_auth.py
-!lambda/integrated_handler.py
-!lambda/requirements.txt
-!lambda/mcp_server/
-
-# Deployment outputs (may contain sensitive resource IDs)
-deployment-outputs.txt
+# ProtoShield scan output
+.protoshield/
