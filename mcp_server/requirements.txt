@@ -11,3 +11,12 @@ pytest>=7.4.0
 hypothesis>=6.92.0
 uvicorn>=0.27.0
 starlette>=0.36.0
+
+# Security floors for transitive deps (ProtoShield CVE scan, 2026-10-01):
+# anyio   CVE-2026-63374  (TLS certificate spoofing)
+# urllib3 CVE-2025-66418/66471, CVE-2026-21441/44431/97687/97689
+# idna    CVE-2026-45409
+anyio>=4.14.2
+urllib3>=2.8.0
+idna>=3.15
+requests>=2.32.0

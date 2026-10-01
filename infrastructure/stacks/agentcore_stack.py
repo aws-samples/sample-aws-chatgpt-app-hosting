@@ -256,12 +256,19 @@ class AgentCoreStack(Stack):
                 ],
             )
         )
+        # aoss:APIAccessAll is the only data-plane IAM action OpenSearch Serverless
+        # exposes; there is no finer-grained action to pick. Actual read/write
+        # authorization is enforced by the collection data access policy in (f)
+        # below, which limits this role to the coffee-products collection/index.
         runtime.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["aoss:APIAccessAll"],
                 resources=[collection.attr_arn],
             )
         )
+        # AgentCore Runtime writes to /aws/bedrock-agentcore/runtimes/<name>-<id>-DEFAULT.
+        # The id is assigned at creation, so scope to the runtimes namespace rather
+        # than the whole account.
         runtime.add_to_role_policy(
             iam.PolicyStatement(
                 actions=[
@@ -269,13 +276,22 @@ class AgentCoreStack(Stack):
                     "logs:CreateLogStream",
                     "logs:PutLogEvents",
                 ],
-                resources=["*"],
+                resources=[
+                    f"arn:aws:logs:{region}:{account}:log-group:/aws/bedrock-agentcore/runtimes/*",
+                    f"arn:aws:logs:{region}:{account}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*",
+                ],
             )
         )
         cart_table.grant_read_write_data(runtime.role)
 
         # ------------------------------------------------------------------
         # f. OpenSearch data access policy (runtime role + account root)
+        #
+        # The account root principal is intentional for this sample: it lets
+        # whoever deploys the stack run scripts/setup_data.py from their own
+        # credentials to create the index and load the catalog. Note it is
+        # scoped to this collection and its indexes only. For production, replace
+        # it with a dedicated, narrowly scoped data-loader role.
         # ------------------------------------------------------------------
         data_access_policy = opensearchserverless.CfnAccessPolicy(
             self,

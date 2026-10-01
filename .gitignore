@@ -64,3 +64,6 @@ claude_changes/
 cognito_tokens*.txt
 *_tokens.txt
 credentials.json
+
+# ProtoShield scan output
+.protoshield/
