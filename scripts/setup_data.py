@@ -3,9 +3,9 @@
 setup_data.py — single, idempotent data-setup entrypoint for the Part 2
 AgentCore Coffee app.
 
-Run this once after `cdk deploy --all`:
+Run this once after `agentcore deploy`:
 
-    export OPENSEARCH_ENDPOINT=<AgentCoreStack.OpenSearchEndpoint>
+    export OPENSEARCH_ENDPOINT=<OpenSearchEndpoint stack output>
     python3 scripts/setup_data.py
 
 What it does (all idempotent — safe to re-run):
@@ -18,13 +18,13 @@ What it does (all idempotent — safe to re-run):
      (amazon.titan-embed-text-v1) for semantic search.
 
 Environment variables:
-  OPENSEARCH_ENDPOINT  (required unless resolvable from the AgentCoreStack
-                        CloudFormation output)
+  OPENSEARCH_ENDPOINT  (required — the OpenSearchEndpoint stack output from
+                        `agentcore deploy`)
   AWS_REGION           (default: us-east-1)
   S3_BUCKET            (optional — enables image generation/upload)
   CLOUDFRONT_DOMAIN    (optional — enables image generation/upload)
 
-Requires: boto3, opensearch-py, requests-aws4auth (see mcp_server/requirements.txt).
+Requires: boto3, opensearch-py, requests-aws4auth (see mcp_server/pyproject.toml).
 Run from the project root so that data/products.json resolves.
 """
 import json
@@ -84,23 +84,26 @@ def _log(msg: str) -> None:
 
 
 def resolve_endpoint() -> str:
-    """Resolve the OpenSearch endpoint from env or the AgentCoreStack output."""
+    """Resolve the OpenSearch endpoint from env or the AgentCore stack output."""
     endpoint = os.environ.get("OPENSEARCH_ENDPOINT", "").strip()
     if endpoint:
         return endpoint.replace("https://", "")
 
-    _log("OPENSEARCH_ENDPOINT not set — trying AgentCoreStack CloudFormation output...")
+    # The AgentCore CLI names the stack AgentCore-<project>-<target>. Override
+    # with AGENTCORE_STACK_NAME if you deploy to a non-default target.
+    stack_name = os.environ.get("AGENTCORE_STACK_NAME", "AgentCore-CoffeeDiscovery-default")
+    _log(f"OPENSEARCH_ENDPOINT not set — trying {stack_name} CloudFormation output...")
     try:
         cfn = boto3.client("cloudformation", region_name=REGION)
-        stacks = cfn.describe_stacks(StackName="AgentCoreStack")["Stacks"]
+        stacks = cfn.describe_stacks(StackName=stack_name)["Stacks"]
         for output in stacks[0].get("Outputs", []):
             if output["OutputKey"] == "OpenSearchEndpoint":
                 return output["OutputValue"].replace("https://", "")
     except Exception as e:  # noqa: BLE001
-        _log(f"  Could not read AgentCoreStack output: {e}")
+        _log(f"  Could not read {stack_name} output: {e}")
 
     _log("ERROR: OpenSearch endpoint not found.")
-    _log("  Set it explicitly: export OPENSEARCH_ENDPOINT=<AgentCoreStack.OpenSearchEndpoint>")
+    _log("  Set it explicitly: export OPENSEARCH_ENDPOINT=<OpenSearchEndpoint output>")
     sys.exit(1)
 
 

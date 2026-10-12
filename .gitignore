@@ -40,9 +40,10 @@ htmlcov/
 cdk.out/
 .cdk.staging/
 
-# Environment variables
+# Environment variables (keep the committed template)
 .env
-.env.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store
@@ -50,6 +51,26 @@ Thumbs.db
 
 # AgentCore build artifacts
 .bedrock_agentcore/
+
+# AgentCore CLI generated local state (agentcore/.gitignore also covers these;
+# listed here explicitly so the repo root ignores CLI-generated secrets/state).
+# Ignoring the whole .cli/ directory also overrides the vended
+# `!.cli/deployed-state.json` exception: after a deploy that file holds
+# account-specific runtime/gateway ARNs, and .cli/logs/ holds full deploy logs.
+agentcore/.env.local
+agentcore/.cli/
+agentcore/.cache/
+agentcore/cdk/cdk.out/
+agentcore/cdk/dist/
+node_modules/
+
+# The generic Python patterns above (lib/, build/, dist/) must NOT swallow the
+# AgentCore CDK TypeScript source directories. Keep the hand-written stack and
+# entrypoint tracked; only the compiled dist/ (ignored above) is build output.
+!agentcore/cdk/lib/
+!agentcore/cdk/lib/**
+!agentcore/cdk/bin/
+!agentcore/cdk/bin/**
 
 # Security scan results
 ash-results/
@@ -64,6 +85,23 @@ claude_changes/
 cognito_tokens*.txt
 *_tokens.txt
 credentials.json
+secrets.json
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# CDK context caches can embed account IDs (e.g. AZ / VPC lookups)
+cdk.context.json
+
+# Agent/workflow working files: deploy logs, test transcripts, and resource
+# inventories that contain account IDs, ARNs, and endpoint URLs
+.agents/
+*.bak
+
+# Python virtual environments created by uv (`uv venv` defaults to .venv)
+.venv/
 
 # ProtoShield scan output
 .protoshield/

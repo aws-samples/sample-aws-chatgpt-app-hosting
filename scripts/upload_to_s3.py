@@ -5,6 +5,7 @@ This script provides functionality to upload product images to S3 with proper
 metadata and caching headers, then generate CloudFront URLs for CDN delivery.
 """
 
+import os
 import boto3
 import requests
 from pathlib import Path
@@ -41,9 +42,11 @@ def upload_image_to_s3(
     # If bucket_name not provided, try to get from CDK outputs or construct from account ID
     if not bucket_name:
         try:
-            # Try CDK outputs first
+            # Try the AgentCore CLI stack output first. Override with
+            # AGENTCORE_STACK_NAME for a non-default deployment target.
+            stack_name = os.environ.get('AGENTCORE_STACK_NAME', 'AgentCore-CoffeeDiscovery-default')
             cfn = boto3.client('cloudformation', region_name='us-east-1')
-            response = cfn.describe_stacks(StackName='ImageHostingStack')
+            response = cfn.describe_stacks(StackName=stack_name)
             outputs = response['Stacks'][0]['Outputs']
             for output in outputs:
                 if output['OutputKey'] == 'ProductImagesBucketName':

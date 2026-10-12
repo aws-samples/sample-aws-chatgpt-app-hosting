@@ -1,0 +1,8 @@
+[
+  {
+    "name": "default",
+    "description": "Placeholder deployment target. Replace account with your 12-digit AWS account ID before running `agentcore deploy`. Region must offer amazon.titan-embed-text-v1 (us-east-1 recommended).",
+    "account": "000000000000",
+    "region": "us-east-1"
+  }
+]

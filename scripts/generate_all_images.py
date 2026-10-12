@@ -44,9 +44,10 @@ def get_cloudfront_domain():
     """Get CloudFront domain from CDK outputs."""
     import boto3
     
+    stack_name = os.environ.get('AGENTCORE_STACK_NAME', 'AgentCore-CoffeeDiscovery-default')
     try:
         cfn = boto3.client('cloudformation', region_name='us-east-1')
-        response = cfn.describe_stacks(StackName='ImageHostingStack')
+        response = cfn.describe_stacks(StackName=stack_name)
         outputs = response['Stacks'][0]['Outputs']
         
         for output in outputs:
@@ -62,9 +63,10 @@ def get_bucket_name():
     """Get S3 bucket name from CDK outputs or construct from account ID."""
     import boto3
     
+    stack_name = os.environ.get('AGENTCORE_STACK_NAME', 'AgentCore-CoffeeDiscovery-default')
     try:
         cfn = boto3.client('cloudformation', region_name='us-east-1')
-        response = cfn.describe_stacks(StackName='ImageHostingStack')
+        response = cfn.describe_stacks(StackName=stack_name)
         outputs = response['Stacks'][0]['Outputs']
         
         for output in outputs:
@@ -103,7 +105,7 @@ def generate_all_images(skip_existing=True, delay_seconds=2):
     
     if not cloudfront_domain or not bucket_name:
         logger.error("Could not determine CloudFront domain or S3 bucket name")
-        logger.error("Please ensure ImageHostingStack is deployed")
+        logger.error("Please ensure the AgentCore stack is deployed (agentcore deploy)")
         sys.exit(1)
     
     logger.info(f"CloudFront domain: {cloudfront_domain}")
