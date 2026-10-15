@@ -8,7 +8,7 @@ import {
   type CustomJWTAuthorizerConfig,
   type HarnessDeploymentConfig,
 } from '@aws/agentcore-cdk';
-import { CfnOutput, Duration, Fn, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
+import { Annotations, CfnOutput, Duration, Fn, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as opensearchserverless from 'aws-cdk-lib/aws-opensearchserverless';
@@ -25,6 +25,7 @@ import { Construct } from 'constructs';
  */
 const COLLECTION_NAME = 'coffee-products';
 const CART_TABLE_NAME = 'coffee-cart';
+const RUNTIME_NAME = 'coffee_mcp';
 const GATEWAY_NAME = 'coffee-runtime-noauth';
 const GATEWAY_TARGET_NAME = 'coffee-runtime-direct';
 
@@ -177,6 +178,32 @@ export class AgentCoreStack extends Stack {
    */
   private addCoffeeDiscoveryBackend(mcp?: AgentCoreMcp): void {
     // --------------------------------------------------------------
+    // Resolve the runtime (by name) and gateway this backend wires itself to.
+    //
+    // The committed agentcore.json ships WITHOUT a runtime or gateway: the
+    // reader adds them with `agentcore add agent` / `agentcore add gateway`
+    // (README steps 2-3). Until both exist, there is nothing for the coffee
+    // data layer to attach to, so skip the whole backend rather than throw —
+    // throwing would break the reader's first `agentcore deploy --diff`, and
+    // provisioning the OpenSearch collection with no runtime consuming it would
+    // bill OCUs for nothing. Emit a visible CDK warning (surfaces in
+    // `agentcore deploy`/`deploy --diff` synth output) telling the reader which
+    // commands to run.
+    // --------------------------------------------------------------
+    const runtimeEnv = this.application.environments.get(RUNTIME_NAME);
+    const gw = mcp?.gateways.get(GATEWAY_NAME);
+    if (!runtimeEnv || !gw) {
+      Annotations.of(this).addWarning(
+        `Coffee Discovery backend skipped: no '${RUNTIME_NAME}' runtime and/or '${GATEWAY_NAME}' gateway in agentcore.json yet. ` +
+          `Add them first:\n` +
+          `  agentcore add agent --name ${RUNTIME_NAME} --type byo --language Python --protocol MCP --code-location ./mcp_server --entrypoint server.py\n` +
+          `  agentcore add gateway --name ${GATEWAY_NAME} --protocol-type MCP --authorizer-type NONE\n` +
+          `then re-run 'agentcore validate' and 'agentcore deploy'.`
+      );
+      return;
+    }
+
+    // --------------------------------------------------------------
     // DynamoDB cart table
     // --------------------------------------------------------------
     const cartTable = new dynamodb.Table(this, 'CoffeeCartTable', {
@@ -283,48 +310,51 @@ export class AgentCoreStack extends Stack {
     });
 
     // --------------------------------------------------------------
-    // Wire the backend into every deployed runtime environment
+    // Wire the backend into the deployed runtime environment
+    //
+    // The project declares exactly one runtime (coffee_mcp, resolved by name
+    // above), so wire that single runtime rather than looping.
     // --------------------------------------------------------------
-    for (const env of this.application.environments.values()) {
-      const runtime = env.runtime;
+    const runtime = runtimeEnv.runtime;
 
-      // Runtime env vars (dynamic CDK tokens — must be set here, not in
-      // agentcore.json envVars, which only accepts static strings).
-      runtime.addEnvironmentVariable('OPENSEARCH_ENDPOINT', collection.attrCollectionEndpoint);
-      runtime.addEnvironmentVariable('CLOUDFRONT_DOMAIN', `https://${distribution.distributionDomainName}`);
-      runtime.addEnvironmentVariable('CART_TABLE_NAME', cartTable.tableName);
-      runtime.addEnvironmentVariable('AWS_REGION', this.region);
+    // Runtime env vars (dynamic CDK tokens — must be set here, not in
+    // agentcore.json envVars, which only accepts static strings).
+    runtime.addEnvironmentVariable('OPENSEARCH_ENDPOINT', collection.attrCollectionEndpoint);
+    runtime.addEnvironmentVariable('CLOUDFRONT_DOMAIN', `https://${distribution.distributionDomainName}`);
+    runtime.addEnvironmentVariable('CART_TABLE_NAME', cartTable.tableName);
+    runtime.addEnvironmentVariable('AWS_REGION', this.region);
+    // The gateway lists runtime tools as `<target>___<tool>`; the server echoes this prefix to the
+    // widgets (structuredContent.tool_prefix) so their window.openai.callTool names match.
 
-      // Runtime IAM grants.
-      // bedrock:InvokeModel scoped to the single embedding model the server uses.
-      // The CLI default runtime role may grant broader Bedrock access; this
-      // explicit statement documents and pins the exact model dependency.
-      runtime.role.addToPrincipalPolicy(
-        new iam.PolicyStatement({
-          actions: ['bedrock:InvokeModel'],
-          resources: [`arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v1`],
-        })
-      );
-      // aoss:APIAccessAll is the only data-plane IAM action OpenSearch Serverless
-      // exposes; read/write authorization is enforced by the data access policy
-      // below, which scopes this role to the coffee-products collection/index.
-      runtime.role.addToPrincipalPolicy(
-        new iam.PolicyStatement({
-          actions: ['aoss:APIAccessAll'],
-          resources: [collection.attrArn],
-        })
-      );
-      runtime.role.addToPrincipalPolicy(
-        new iam.PolicyStatement({
-          actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-          resources: [
-            `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/bedrock-agentcore/runtimes/*`,
-            `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*`,
-          ],
-        })
-      );
-      cartTable.grantReadWriteData(runtime.role);
-    }
+    // Runtime IAM grants.
+    // bedrock:InvokeModel scoped to the single embedding model the server uses.
+    // The CLI default runtime role may grant broader Bedrock access; this
+    // explicit statement documents and pins the exact model dependency.
+    runtime.role.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [`arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v1`],
+      })
+    );
+    // aoss:APIAccessAll is the only data-plane IAM action OpenSearch Serverless
+    // exposes; read/write authorization is enforced by the data access policy
+    // below, which scopes this role to the coffee-products collection/index.
+    runtime.role.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['aoss:APIAccessAll'],
+        resources: [collection.attrArn],
+      })
+    );
+    runtime.role.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
+        resources: [
+          `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/bedrock-agentcore/runtimes/*`,
+          `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*`,
+        ],
+      })
+    );
+    cartTable.grantReadWriteData(runtime.role);
 
     // --------------------------------------------------------------
     // OpenSearch data access policy (runtime roles + account root)
@@ -335,7 +365,7 @@ export class AgentCoreStack extends Stack {
     // this collection and its indexes only. For production, replace it with a
     // dedicated, narrowly scoped data-loader role.
     // --------------------------------------------------------------
-    const runtimeRoleArns = Array.from(this.application.environments.values()).map(env => env.runtime.role.roleArn);
+    const runtimeRoleArns = [runtime.role.roleArn];
     const dataAccessPolicy = new opensearchserverless.CfnAccessPolicy(this, 'CollectionDataAccessPolicy', {
       name: 'coffee-products-access',
       type: 'data',
@@ -373,10 +403,8 @@ export class AgentCoreStack extends Stack {
     // needs a static endpoint URL that does not exist until the in-project
     // runtime is deployed, so the target is a raw CfnGatewayTarget here.
     // --------------------------------------------------------------
-    const gw = mcp?.gateways.get(GATEWAY_NAME);
-    const firstEnv = Array.from(this.application.environments.values())[0];
-    if (gw && firstEnv) {
-      const runtimeArn = firstEnv.runtime.runtimeArn;
+    {
+      const runtimeArn = runtimeEnv.runtime.runtimeArn;
 
       // Build the runtime invoke URL, URL-encoding the runtime ARN (`:` -> %3A,
       // `/` -> %2F) exactly like the @aws/agentcore-cdk getRuntimeEndpointUrl
