@@ -201,7 +201,7 @@ add the Kenyan to my cart
 show my cart
 ```
 
-Tools appear prefixed with the Gateway target name (for example `coffee-runtime-direct___search_products_tool`). That is expected.
+Tools appear prefixed with the Gateway target name (for example `coffee-runtime-direct___search_products_tool`). That is expected. `cdk-stack.ts` passes the same prefix to the runtime as `TOOL_NAME_PREFIX`, and the server returns it to the widgets (`tool_prefix`) so their buttons call the prefixed names.
 
 ### Verify without ChatGPT
 
@@ -316,6 +316,7 @@ Point it at an OAuth 2.1 identity provider that advertises PKCE in its discovery
 | "No products found" | `setup_data.py` (step 7) not run yet, or the index/data-access policy is still propagating — retry after 2–3 minutes. |
 | `AuthenticationException(401)` on OpenSearch calls (search, product details, or the cart), from the deployed runtime, `agentcore dev`, or `setup_data.py` | The collection's network policy is blocking the request (`x-aoss-response-hint: X01:network-policy-deny`). Signing or data-access problems return 403 instead, so adding yourself to the data-access policy won't help. Run `aws opensearchserverless get-security-policy --type network --name coffee-products-net --query 'securityPolicyDetail.policy[0].AllowFromPublic'`. If it prints `false` and you didn't change it, automated security remediation in your account most likely turned off the collection's public access. Don't turn it back on where private access is enforced: the sample needs a VPC-only network policy to run there, which it doesn't include yet. |
 | Tiles render but images are blank | `CLOUDFRONT_DOMAIN` seen by the runtime doesn't match the CloudFront CDN domain. Check the widget CSP `resource_domains` in `mcp_server/server.py`. |
+| Widget buttons (Add to Cart, +/−, Remove) show "Try Again" while typed prompts work | The widget called an unprefixed tool name, which the gateway rejects (`Unknown tool`). Redeploy (`agentcore deploy -y`) so the runtime has `TOOL_NAME_PREFIX`, then start a new chat so ChatGPT reloads the widget. If the runtime logs show `AuthenticationException(401)` instead, see the 401 row above. |
 | ChatGPT rejects the connector | Authentication must be **None** for this stack. |
 | Cart doesn't persist | Check the `coffee-cart` DynamoDB table and the runtime role's DynamoDB permissions. |
 

@@ -278,6 +278,22 @@
         
         console.log('[Cart Widget] cartData:', cartData);
 
+        // Gateway tool-name prefix (e.g. "coffee-runtime-direct___") sent by the server as
+        // tool_prefix in every tool result. Empty without a gateway (agentcore dev).
+        let toolPrefix = '';
+
+        function rememberToolPrefix(output) {
+            if (output && typeof output.tool_prefix === 'string') {
+                toolPrefix = output.tool_prefix;
+            }
+        }
+
+        function prefixedToolName(name) {
+            return toolPrefix + name;
+        }
+
+        rememberToolPrefix(window.openai?.toolOutput);
+
         // Initialize or get widget state for expanded items
         let widgetState = window.openai?.widgetState || {
             expandedItems: []
@@ -364,7 +380,7 @@
             console.log('[Cart Widget] handleIncrement:', productId, currentQty);
             setItemLoading(productId, true);
             try {
-                const result = await window.openai.callTool('update_cart_quantity', {
+                const result = await window.openai.callTool(prefixedToolName('update_cart_quantity'), {
                     product_id: productId,
                     quantity: currentQty + 1
                 });
@@ -384,13 +400,13 @@
             setItemLoading(productId, true);
             try {
                 if (currentQty <= 1) {
-                    const result = await window.openai.callTool('remove_from_cart', {
+                    const result = await window.openai.callTool(prefixedToolName('remove_from_cart'), {
                         product_id: productId
                     });
                     console.log('[Cart Widget] remove result:', result);
                     updateCartData(result);
                 } else {
-                    const result = await window.openai.callTool('update_cart_quantity', {
+                    const result = await window.openai.callTool(prefixedToolName('update_cart_quantity'), {
                         product_id: productId,
                         quantity: currentQty - 1
                     });
@@ -410,7 +426,7 @@
             console.log('[Cart Widget] handleDelete:', productId);
             setItemLoading(productId, true);
             try {
-                const result = await window.openai.callTool('remove_from_cart', {
+                const result = await window.openai.callTool(prefixedToolName('remove_from_cart'), {
                     product_id: productId
                 });
                 console.log('[Cart Widget] delete result:', result);
@@ -534,6 +550,7 @@
         // Listen for set_globals event
         window.addEventListener('openai:set_globals', (event) => {
             console.log('[Cart Widget] set_globals event:', event.detail);
+            rememberToolPrefix(window.openai?.toolOutput);
             const newData = window.openai?.toolOutput?.cart || window.openai?.toolOutput;
             if (newData) {
                 Object.assign(cartData, newData);

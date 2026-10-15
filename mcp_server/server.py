@@ -6,6 +6,7 @@ import os
 import logging
 from typing import Optional, List, Dict
 from mcp.server.fastmcp import FastMCP
+from mcp.types import CallToolResult
 from tools import search_products, get_product_details, refine_preferences
 from cart_tools import (
     add_to_cart_tool,
@@ -52,6 +53,18 @@ def get_cloudfront_domain() -> str:
 # Use hardcoded domain at import time for decorator metadata (no network call)
 # Actual domain resolved lazily via get_cloudfront_domain() at request time
 CLOUDFRONT_DOMAIN = os.getenv("CLOUDFRONT_DOMAIN", "https://d1pgev4o24ymec.cloudfront.net")
+
+def _with_tool_prefix(result: CallToolResult) -> CallToolResult:
+    """Add the gateway tool-name prefix to structuredContent for the widgets.
+
+    AgentCore Gateway lists this server's tools as `<target>___<tool>`, and widget
+    window.openai.callTool calls must use those names. cdk-stack.ts sets TOOL_NAME_PREFIX
+    on the deployed runtime; it is unset under `agentcore dev`, so widgets fall back to
+    plain names.
+    """
+    if result.structuredContent is not None:
+        result.structuredContent["tool_prefix"] = os.getenv("TOOL_NAME_PREFIX", "")
+    return result
 
 # Initialize FastMCP server
 mcp = FastMCP(
@@ -188,7 +201,7 @@ def search_products_tool(preferences: str, filters: Optional[Dict] = None):
 
     Returns all matching products in a single call and renders them in the widget. Call once per user request; do not repeat the same search.
     """
-    return search_products(preferences, filters)
+    return _with_tool_prefix(search_products(preferences, filters))
 
 @mcp.tool(
     meta={
@@ -217,7 +230,7 @@ def get_product_details_tool(product_id: str):
 
     Returns all matching products in a single call and renders them in the widget. Call once per user request; do not repeat the same search.
     """
-    return get_product_details(product_id)
+    return _with_tool_prefix(get_product_details(product_id))
 
 @mcp.tool(
     meta={
@@ -252,7 +265,7 @@ def refine_preferences_tool(
 
     Returns all matching products in a single call and renders them in the widget. Call once per user request; do not repeat the same search.
     """
-    return refine_preferences(exclude, similar_to, filters)
+    return _with_tool_prefix(refine_preferences(exclude, similar_to, filters))
 
 # Register cart tools
 
@@ -276,7 +289,7 @@ def add_to_cart(product_id: str, quantity: int = 1):
     Returns:
         Dictionary with updated cart contents and message
     """
-    return add_to_cart_tool(product_id, quantity)
+    return _with_tool_prefix(add_to_cart_tool(product_id, quantity))
 
 @mcp.tool(
     meta={
@@ -295,7 +308,7 @@ def view_cart():
     Returns:
         Dictionary with cart items, totals, and message
     """
-    return view_cart_tool()
+    return _with_tool_prefix(view_cart_tool())
 
 @mcp.tool(
     meta={
@@ -317,7 +330,7 @@ def update_cart_quantity(product_id: str, quantity: int):
     Returns:
         Dictionary with updated cart contents and message
     """
-    return update_cart_quantity_tool(product_id, quantity)
+    return _with_tool_prefix(update_cart_quantity_tool(product_id, quantity))
 
 @mcp.tool(
     meta={
@@ -338,7 +351,7 @@ def remove_from_cart(product_id: str):
     Returns:
         Dictionary with updated cart contents and message
     """
-    return remove_from_cart_tool(product_id)
+    return _with_tool_prefix(remove_from_cart_tool(product_id))
 
 @mcp.tool(
     meta={
@@ -357,7 +370,7 @@ def clear_cart():
     Returns:
         Dictionary with empty cart and confirmation message
     """
-    return clear_cart_tool()
+    return _with_tool_prefix(clear_cart_tool())
 
 # Create ASGI app for HTTP transport (required for AgentCore)
 app = mcp.streamable_http_app()

@@ -325,6 +325,7 @@ export class AgentCoreStack extends Stack {
     runtime.addEnvironmentVariable('AWS_REGION', this.region);
     // The gateway lists runtime tools as `<target>___<tool>`; the server echoes this prefix to the
     // widgets (structuredContent.tool_prefix) so their window.openai.callTool names match.
+    runtime.addEnvironmentVariable('TOOL_NAME_PREFIX', `${GATEWAY_TARGET_NAME}___`);
 
     // Runtime IAM grants.
     // bedrock:InvokeModel scoped to the single embedding model the server uses.
