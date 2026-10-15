@@ -465,6 +465,20 @@
         // Global state
         let currentProducts = [];
 
+        // Gateway tool-name prefix (e.g. "coffee-runtime-direct___") sent by the server as
+        // tool_prefix in every tool result. Empty without a gateway (agentcore dev).
+        let toolPrefix = '';
+
+        function rememberToolPrefix(output) {
+            if (output && typeof output.tool_prefix === 'string') {
+                toolPrefix = output.tool_prefix;
+            }
+        }
+
+        function prefixedToolName(name) {
+            return toolPrefix + name;
+        }
+
         /**
          * Initialize the web component
          */
@@ -484,6 +498,7 @@
         function loadInitialProducts() {
             try {
                 if (window.openai && window.openai.toolOutput) {
+                    rememberToolPrefix(window.openai.toolOutput);
                     console.log('[Coffee Discovery] Loading from toolOutput:', window.openai.toolOutput);
                     const products = window.openai.toolOutput.products || [];
                     renderProducts(products);
@@ -506,6 +521,7 @@
             try {
                 const globals = event.detail?.globals;
                 if (globals && globals.toolOutput) {
+                    rememberToolPrefix(globals.toolOutput);
                     const products = globals.toolOutput.products || [];
                     renderProducts(products);
                 }
@@ -681,7 +697,7 @@
                     return;
                 }
                 
-                const response = await window.openai.callTool('add_to_cart', {
+                const response = await window.openai.callTool(prefixedToolName('add_to_cart'), {
                     product_id: product.product_id,
                     quantity: 1
                 });
@@ -739,7 +755,7 @@
                 }
                 
                 // Call add_to_cart via MCP
-                const response = await window.openai.callTool('add_to_cart', {
+                const response = await window.openai.callTool(prefixedToolName('add_to_cart'), {
                     product_id: productId,
                     quantity: 1
                 });
